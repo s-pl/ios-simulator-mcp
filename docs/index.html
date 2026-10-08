@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ios-simulator-mcp — Controla el Simulador de iOS desde tu agente</title>
+  <meta name="description" content="Servidor MCP para controlar el Simulador de iOS: dispositivos, apps, interfaz, capturas, entorno y logs.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='8' y='2' width='16' height='28' rx='4' fill='%232563eb'/%3E%3Crect x='10.5' y='5' width='11' height='20' rx='1.5' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#inicio">
+      <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><rect x="8" y="2" width="16" height="28" rx="4" fill="currentColor"/><rect x="10.5" y="5" width="11" height="20" rx="1.5" class="brand-screen"/></svg>
+      ios-simulator-mcp <span class="version" id="version"></span>
+    </a>
+    <nav class="toplinks">
+      <a href="https://github.com/s-pl/ios-simulator-mcp">GitHub</a>
+      <a href="https://github.com/s-pl/ios-simulator-mcp/issues">Incidencias</a>
+    </nav>
+    <button class="menu-toggle" id="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav>
+        <p class="nav-title">Empezar</p>
+        <a href="#inicio">Introducción</a>
+        <a href="#requisitos">Requisitos</a>
+        <a href="#instalacion">Instalación</a>
+        <a href="#configuracion">Configuración</a>
+        <a href="#primeros-pasos">Primeros pasos</a>
+        <p class="nav-title">Referencia</p>
+        <a href="#conceptos">Conceptos clave</a>
+        <a href="#herramientas">Herramientas</a>
+        <a href="#errores">Códigos de error</a>
+        <p class="nav-title">Proyecto</p>
+        <a href="#arquitectura">Arquitectura</a>
+        <a href="#extender">Añadir una herramienta</a>
+        <a href="#desarrollo">Desarrollo y tests</a>
+        <a href="#problemas">Solución de problemas</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section id="inicio" class="hero">
+        <h1>Controla el Simulador de iOS desde tu agente</h1>
+        <p class="lead">
+          <strong>ios-simulator-mcp</strong> es un servidor
+          <a href="https://modelcontextprotocol.io">Model Context Protocol</a> que da a Claude
+          (o a cualquier cliente MCP) las manos y los ojos que necesita para trabajar con el
+          Simulador de iOS: arrancar dispositivos, instalar y lanzar tu app, tocar la pantalla,
+          leer lo que hay en ella, capturarla y simular el entorno.
+        </p>
+        <div class="cards">
+          <div class="card"><h3>Dispositivos</h3><p>Listar, arrancar, apagar y restaurar simuladores.</p></div>
+          <div class="card"><h3>Apps</h3><p>Instalar, lanzar, terminar, abrir deep links e inspeccionar contenedores.</p></div>
+          <div class="card"><h3>Interfaz</h3><p>Leer el árbol de accesibilidad, tocar, deslizar y escribir.</p></div>
+          <div class="card"><h3>Multimedia</h3><p>Capturas de pantalla y grabación de vídeo.</p></div>
+          <div class="card"><h3>Entorno</h3><p>Ubicación, modo oscuro, barra de estado, permisos y push.</p></div>
+          <div class="card"><h3>Logs</h3><p>Logs del sistema filtrados por proceso o texto.</p></div>
+        </div>
+      </section>
+
+      <section id="requisitos">
+        <h2>Requisitos</h2>
+        <table>
+          <thead><tr><th>Requisito</th><th>Para qué</th><th>Cómo instalarlo</th></tr></thead>
+          <tbody>
+            <tr><td>macOS con Xcode</td><td>Todo. El servidor usa <code>xcrun simctl</code>.</td><td>App Store y <code>xcode-select --install</code></td></tr>
+            <tr><td>Node.js 20 o superior</td><td>Ejecutar el servidor.</td><td><code>brew install node</code></td></tr>
+            <tr><td><a href="https://fbidb.io">idb</a> <span class="tag">opcional</span></td><td>Solo las herramientas <code>ui_*</code>.</td><td>Ver <a href="#instalar-idb">más abajo</a></td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>Solo macOS.</strong> El Simulador de iOS no existe en Windows ni en Linux. En esos
+          sistemas el servidor arranca y publica sus herramientas, pero cada llamada devuelve
+          <code>[UNSUPPORTED_PLATFORM]</code>.
+        </div>
+      </section>
+
+      <section id="instalacion">
+        <h2>Instalación</h2>
+        <h3>1. Descarga y compila</h3>
+<pre><code>git clone https://github.com/s-pl/ios-simulator-mcp.git
+cd ios-simulator-mcp
+npm install</code></pre>
+        <p><code>npm install</code> también compila el proyecto a <code>dist/</code>.</p>
+
+        <h3>2. Regístralo en tu cliente MCP</h3>
+        <h4>Claude Code</h4>
+<pre><code>claude mcp add ios-simulator -- node "$(pwd)/dist/index.js"</code></pre>
+        <p>Comprueba que está conectado con <code>claude mcp list</code> o con <code>/mcp</code> dentro de una sesión.</p>
+
+        <h4>Claude Desktop y otros clientes</h4>
+        <p>Añade el servidor al archivo de configuración del cliente (en Claude Desktop,
+          <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>):</p>
+<pre><code>{
+  "mcpServers": {
+    "ios-simulator": {
+      "command": "node",
+      "args": ["/ruta/absoluta/ios-simulator-mcp/dist/index.js"]
+    }
+  }
+}</code></pre>
+
+        <h3 id="instalar-idb">3. Instala idb <span class="tag">opcional</span></h3>
+        <p><code>simctl</code> no puede inyectar toques ni leer la pantalla, así que las herramientas
+          <code>ui_*</code> usan <a href="https://fbidb.io">idb</a> de Meta. El resto del servidor funciona sin él.</p>
+<pre><code>brew tap facebook/fb
+brew install idb-companion
+pipx install fb-idb</code></pre>
+        <p>Si el cliente MCP no encuentra <code>idb</code> (las apps de escritorio no heredan el
+          <code>PATH</code> de tu terminal), indica la ruta completa con
+          <code>IOS_SIMULATOR_MCP_IDB_PATH</code>. La obtienes con <code>which idb</code>.</p>
+      </section>
+
+      <section id="configuracion">
+        <h2>Configuración</h2>
+        <p>Todo es opcional y se ajusta con variables de entorno.</p>
+        <table>
+          <thead><tr><th>Variable</th><th>Por defecto</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><code>IOS_SIMULATOR_MCP_XCRUN_PATH</code></td><td><code>xcrun</code></td><td>Ejecutable de <code>xcrun</code>.</td></tr>
+            <tr><td><code>IOS_SIMULATOR_MCP_IDB_PATH</code></td><td><code>idb</code></td><td>Ejecutable de <code>idb</code>.</td></tr>
+            <tr><td><code>IOS_SIMULATOR_MCP_OUTPUT_DIR</code></td><td><code>$TMPDIR/ios-simulator-mcp</code></td><td>Carpeta por defecto de las grabaciones.</td></tr>
+          </tbody>
+        </table>
+        <p>Ejemplo en Claude Code:</p>
+<pre><code>claude mcp add ios-simulator \
+  -e IOS_SIMULATOR_MCP_IDB_PATH="$(which idb)" \
+  -e IOS_SIMULATOR_MCP_OUTPUT_DIR="$HOME/Desktop/sim" \
+  -- node "$(pwd)/dist/index.js"</code></pre>
+      </section>
+
+      <section id="primeros-pasos">
+        <h2>Primeros pasos</h2>
+        <p>Con el servidor conectado, pídele al agente lo que quieras en lenguaje natural. Por ejemplo:</p>
+        <ul class="prompts">
+          <li>«Arranca un iPhone 16 y hazme una captura.»</li>
+          <li>«Instala <code>build/MyApp.app</code>, lánzala e inicia sesión con el usuario de pruebas.»</li>
+          <li>«Abre <code>myapp://settings</code>, ponlo en modo oscuro y dime si algo se ve mal.»</li>
+          <li>«Concede permiso de fotos a mi app y envíale una push de prueba.»</li>
+          <li>«Reproduce el fallo del carrito y enséñame los logs de MyApp del último minuto.»</li>
+        </ul>
+        <p>El flujo habitual que seguirá el agente es:</p>
+        <ol class="flow">
+          <li><code>list_devices</code><span>encontrar el simulador</span></li>
+          <li><code>boot_device</code><span>arrancarlo</span></li>
+          <li><code>install_app</code> / <code>launch_app</code><span>poner la app en marcha</span></li>
+          <li><code>ui_describe_screen</code><span>localizar elementos</span></li>
+          <li><code>ui_tap</code> / <code>ui_type_text</code><span>interactuar</span></li>
+          <li><code>screenshot</code><span>verificar el resultado</span></li>
+        </ol>
+      </section>
+
+      <section id="conceptos">
+        <h2>Conceptos clave</h2>
+        <h3>El parámetro <code>device</code></h3>
+        <p>Casi todas las herramientas aceptan un <code>device</code> opcional, que puede ser un UDID
+          o el nombre exacto del simulador (sin distinguir mayúsculas). Se resuelve así:</p>
+        <ul>
+          <li><strong>Omitido:</strong> se usa el único simulador arrancado. Si no hay ninguno o hay varios, se devuelve un error que indica cómo elegir.</li>
+          <li><strong>UDID:</strong> ese dispositivo.</li>
+          <li><strong>Nombre:</strong> ese dispositivo. Si varios runtimes comparten el nombre (p. ej. «iPhone 15» en iOS 17 y iOS 18), gana el que esté arrancado; si no se puede decidir, se pide el UDID.</li>
+        </ul>
+        <p>Las operaciones donde adivinar sería peligroso (<code>boot_device</code>, <code>erase_device</code>) exigen <code>device</code>.</p>
+
+        <h3>Puntos, no píxeles</h3>
+        <p>Las herramientas <code>ui_*</code> trabajan en <strong>puntos</strong>, el espacio de coordenadas de UIKit.
+          Una captura está en <strong>píxeles</strong>: puntos × escala del dispositivo (normalmente 3 en iPhone y 2 en iPad).
+          Para tocar algo, lo fiable es usar el <code>tapPoint</code> que devuelve <code>ui_describe_screen</code>
+          en vez de estimar coordenadas sobre la imagen.</p>
+
+        <h3>Indicadores de comportamiento</h3>
+        <p>Cada herramienta declara si solo lee, si modifica estado o si destruye datos. Los clientes MCP
+          usan esa información para decidir cuándo pedir confirmación.</p>
+        <p><span class="badge read">lectura</span> <span class="badge write">modifica</span> <span class="badge danger">destructiva</span></p>
+      </section>
+
+      <section id="herramientas">
+        <h2>Herramientas</h2>
+        <p>Referencia generada a partir del propio servidor, así que siempre coincide con el código.
+          Las descripciones están en inglés porque son exactamente las que recibe el modelo.</p>
+        <input type="search" id="tool-filter" placeholder="Filtrar herramientas…" aria-label="Filtrar herramientas">
+        <div id="tools"><p class="muted">Cargando la referencia…</p></div>
+      </section>
+
+      <section id="errores">
+        <h2>Códigos de error</h2>
+        <p>Los fallos vuelven como resultado de error con el formato <code>[CÓDIGO] mensaje</code>, y el mensaje
+          dice qué hacer a continuación.</p>
+        <table>
+          <thead><tr><th>Código</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><code>UNSUPPORTED_PLATFORM</code></td><td>El servidor no se está ejecutando en macOS.</td></tr>
+            <tr><td><code>EXECUTABLE_NOT_FOUND</code></td><td>Falta <code>xcrun</code> o <code>idb</code>; el mensaje incluye cómo instalarlo.</td></tr>
+            <tr><td><code>COMMAND_FAILED</code></td><td>Un comando terminó con error. Incluye el comando exacto y su salida.</td></tr>
+            <tr><td><code>COMMAND_TIMEOUT</code></td><td>Un comando superó su tiempo máximo.</td></tr>
+            <tr><td><code>UNEXPECTED_OUTPUT</code></td><td>La salida de una herramienta externa no tiene el formato esperado.</td></tr>
+            <tr><td><code>DEVICE_NOT_FOUND</code></td><td>Ningún simulador disponible coincide con el nombre o UDID.</td></tr>
+            <tr><td><code>NO_BOOTED_DEVICE</code></td><td>Se omitió <code>device</code> y no hay ningún simulador arrancado.</td></tr>
+            <tr><td><code>AMBIGUOUS_DEVICE</code></td><td>Varios simuladores coinciden; se listan los candidatos.</td></tr>
+            <tr><td><code>DEVICE_NOT_BOOTED</code></td><td>La operación necesita el simulador arrancado.</td></tr>
+            <tr><td><code>DEVICE_NOT_SHUTDOWN</code></td><td>La operación necesita el simulador apagado (<code>erase_device</code>).</td></tr>
+            <tr><td><code>RECORDING_ALREADY_ACTIVE</code></td><td>Ya hay una grabación en curso en ese dispositivo.</td></tr>
+            <tr><td><code>NO_ACTIVE_RECORDING</code></td><td>No hay ninguna grabación que detener.</td></tr>
+            <tr><td><code>INVALID_ARGUMENT</code></td><td>Un valor es válido sintácticamente pero no aceptable.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="arquitectura">
+        <h2>Arquitectura</h2>
+        <p>El proyecto sigue una arquitectura hexagonal en cuatro capas. Las dependencias apuntan
+          siempre hacia el dominio: el dominio no conoce a nadie y la capa MCP no sabe qué es <code>simctl</code>.</p>
+
+        <div class="diagram" role="img" aria-label="Diagrama de capas: MCP, aplicación, dominio e infraestructura">
+          <div class="layer l-mcp"><strong>mcp/</strong><span>Presentación · ToolProviders, SimulatorMcpServer</span></div>
+          <div class="arrow">↓ llama a</div>
+          <div class="layer l-app"><strong>application/</strong><span>Casos de uso · servicios, DeviceResolver</span></div>
+          <div class="arrow">↓ depende de</div>
+          <div class="layer l-domain"><strong>domain/</strong><span>Modelo, errores y puertos (interfaces <em>…Gateway</em>)</span></div>
+          <div class="arrow">↑ implementa</div>
+          <div class="layer l-infra"><strong>infrastructure/</strong><span>Adaptadores · simctl, idb, SimulatorHost, CommandRunner</span></div>
+        </div>
+
+        <table>
+          <thead><tr><th>Capa</th><th>Responsabilidad</th><th>Piezas principales</th></tr></thead>
+          <tbody>
+            <tr><td><code>domain/</code></td><td>Modelo y contratos, sin dependencias externas.</td><td><code>Device</code>, <code>Runtime</code>, <code>Point</code>, <code>SimulatorError</code>, <code>ports/*Gateway</code></td></tr>
+            <tr><td><code>application/</code></td><td>Reglas de negocio y orquestación.</td><td><code>DeviceResolver</code>, <code>DeviceService</code>, <code>AppService</code>, <code>UiService</code>, <code>MediaService</code>, <code>EnvironmentService</code>, <code>LogService</code></td></tr>
+            <tr><td><code>infrastructure/</code></td><td>Hablar con el mundo real.</td><td><code>NodeCommandRunner</code>, <code>SimulatorHost</code>, <code>Simctl*Gateway</code>, <code>IdbUiAutomationGateway</code></td></tr>
+            <tr><td><code>mcp/</code></td><td>Exponer los casos de uso como herramientas MCP.</td><td><code>ToolDefinition</code>, <code>*Tools</code>, <code>SimulatorMcpServer</code></td></tr>
+            <tr><td><code>container.ts</code></td><td>Composition root: único lugar que conecta las capas.</td><td><code>createContainer()</code></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Recorrido de una llamada</h3>
+        <ol>
+          <li><code>SimulatorMcpServer</code> valida la entrada con el esquema zod de la herramienta.</li>
+          <li>El <code>ToolProvider</code> la traduce a una llamada al servicio de aplicación.</li>
+          <li>El servicio resuelve el dispositivo con <code>DeviceResolver</code> y aplica sus reglas.</li>
+          <li>El gateway ejecuta el comando a través de <code>SimulatorHost</code>.</li>
+          <li>Si algo falla, el <code>SimulatorError</code> vuelve al cliente como <code>[CÓDIGO] mensaje</code>.</li>
+        </ol>
+
+        <h3>Decisiones de diseño</h3>
+        <ul>
+          <li><strong>Sin shell.</strong> Los comandos se lanzan como ejecutable más vector de argumentos, de modo que ningún valor enviado por el modelo puede inyectar comandos.</li>
+          <li><strong>Un puerto por capacidad.</strong> <code>idb</code> es un adaptador más de <code>UiAutomationGateway</code>; puede sustituirse sin tocar la aplicación ni la capa MCP.</li>
+          <li><strong>Herramientas declarativas.</strong> Cada herramienta es un <code>ToolDefinition</code> (contrato más <code>execute</code>) independiente del SDK; el servidor solo las registra y centraliza los errores.</li>
+          <li><strong>Estado acotado.</strong> El único estado son las grabaciones en curso, encapsuladas en <code>MediaService</code> y liberadas al cerrar.</li>
+          <li><strong>Operaciones destructivas explícitas.</strong> <code>erase_device</code> exige dispositivo y que esté apagado; nunca lo apaga por su cuenta.</li>
+        </ul>
+      </section>
+
+      <section id="extender">
+        <h2>Añadir una herramienta</h2>
+        <ol>
+          <li>Si hace falta una capacidad nueva, añádela al puerto en <code>src/domain/ports/</code> e impleméntala en su gateway.</li>
+          <li>Expón el caso de uso en el servicio correspondiente de <code>src/application/</code>.</li>
+          <li>Declara la herramienta en el <code>ToolProvider</code> de <code>src/mcp/tools/</code>:</li>
+        </ol>
+<pre><code>defineTool({
+  name: 'set_appearance',
+  title: 'Set light or dark mode',
+  description: 'Switches the simulator between light and dark appearance.',
+  inputSchema: {
+    appearance: z.enum(APPEARANCES).describe('Appearance to apply.'),
+    device: deviceParam,
+  },
+  annotations: { ...Hints.mutating, idempotentHint: true },
+  execute: async ({ appearance, device }) => {
+    const target = await this.environment.setAppearance(appearance, device);
+    return text(`${target.label} now uses the ${appearance} appearance.`);
+  },
+}),</code></pre>
+        <p>Después ejecuta <code>npm run docs:tools</code> para regenerar la referencia de esta página.</p>
+      </section>
+
+      <section id="desarrollo">
+        <h2>Desarrollo y tests</h2>
+        <table>
+          <thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+          <tbody>
+            <tr><td><code>npm run build</code></td><td>Compila a <code>dist/</code>.</td></tr>
+            <tr><td><code>npm run typecheck</code></td><td>Comprueba tipos de <code>src/</code> y <code>test/</code>.</td></tr>
+            <tr><td><code>npm test</code></td><td>Tests unitarios y de extremo a extremo en memoria. No necesitan Mac.</td></tr>
+            <tr><td><code>npm run test:integration</code></td><td>Tests contra un simulador real. Solo macOS; arrancan un dispositivo.</td></tr>
+            <tr><td><code>npm run docs:tools</code></td><td>Regenera la referencia de herramientas de este sitio.</td></tr>
+          </tbody>
+        </table>
+        <p>Los tests normales sustituyen la ejecución de comandos por un <code>FakeCommandRunner</code> y conectan un
+          cliente MCP real al servidor completo, comprobando los comandos exactos que se emitirían. Los de integración
+          se ejecutan en CI sobre un runner de macOS con un simulador de verdad.</p>
+      </section>
+
+      <section id="problemas">
+        <h2>Solución de problemas</h2>
+        <details><summary>Las herramientas <code>ui_*</code> responden <code>EXECUTABLE_NOT_FOUND</code></summary>
+          <p>Falta <code>idb</code> o el cliente no lo encuentra en su <code>PATH</code>. Instálalo y, si sigue fallando,
+            define <code>IOS_SIMULATOR_MCP_IDB_PATH</code> con la salida de <code>which idb</code>.</p></details>
+        <details><summary><code>NO_BOOTED_DEVICE</code> al usar cualquier herramienta</summary>
+          <p>No hay ningún simulador arrancado. Usa <code>list_devices</code> y luego <code>boot_device</code>, o pasa <code>device</code>.</p></details>
+        <details><summary>Los toques caen en el sitio equivocado</summary>
+          <p>Probablemente se están usando píxeles de la captura. Usa el <code>tapPoint</code> de <code>ui_describe_screen</code>,
+            que ya está en puntos.</p></details>
+        <details><summary><code>xcrun: error: unable to find utility "simctl"</code></summary>
+          <p>Las herramientas de línea de comandos no apuntan a Xcode. Ejecuta
+            <code>sudo xcode-select -s /Applications/Xcode.app</code>.</p></details>
+        <details><summary>El vídeo grabado no se abre</summary>
+          <p>La grabación solo se finaliza con <code>stop_recording</code>. Si el servidor se cierra de forma normal,
+            detiene las grabaciones pendientes; si se mata el proceso, el archivo puede quedar incompleto.</p></details>
+        <details><summary>¿Dónde veo qué comando falló?</summary>
+          <p>Los errores <code>COMMAND_FAILED</code> incluyen la línea de comandos exacta y su salida. Puedes copiarla
+            y ejecutarla en una terminal para reproducir el problema.</p></details>
+        <p>Si encuentras un fallo, <a href="https://github.com/s-pl/ios-simulator-mcp/issues/new">abre una incidencia</a>
+          indicando la versión de Xcode y el mensaje de error completo.</p>
+      </section>
+
+      <footer>
+        <p>Publicado bajo licencia MIT · <a href="https://github.com/s-pl/ios-simulator-mcp">Código fuente en GitHub</a></p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/tools.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
