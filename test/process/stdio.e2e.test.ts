@@ -89,12 +89,17 @@ describe('server process over stdio', () => {
     expect(stderr()).toContain('MCP server');
   });
 
-  it.runIf(isMac)('lists the real simulators on macOS', async () => {
-    const { client } = await connect();
-    const result = await client.callTool({ name: 'list_devices', arguments: {} });
-    expect(result.isError).not.toBe(true);
-    expect(Array.isArray(JSON.parse(textOf(result)))).toBe(true);
-  });
+  // The first simctl call on a cold machine can take a long time.
+  it.runIf(isMac)(
+    'lists the real simulators on macOS',
+    async () => {
+      const { client } = await connect();
+      const result = await client.callTool({ name: 'list_devices', arguments: {} }, undefined, { timeout: 170_000 });
+      expect(result.isError).not.toBe(true);
+      expect(Array.isArray(JSON.parse(textOf(result)))).toBe(true);
+    },
+    180_000,
+  );
 
   it.runIf(!isMac)('answers every call with a clear error off macOS', async () => {
     const { client } = await connect();
@@ -144,7 +149,7 @@ describe('server process over stdio', () => {
     const result = await client.callTool({ name: 'list_devices', arguments: {} });
     expect(result.isError).toBe(true);
     expect(textOf(result)).toMatch(isMac ? /^\[EXECUTABLE_NOT_FOUND\].*xcode-select/s : /^\[UNSUPPORTED_PLATFORM\]/);
-  });
+  }, 30_000);
 
   it('exits when the client disconnects', async () => {
     const { client, transport } = await connect();

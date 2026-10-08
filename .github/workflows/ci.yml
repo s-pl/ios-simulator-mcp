@@ -48,3 +48,10 @@ jobs:
           brew install idb-companion
           pipx install fb-idb
       - run: npm run test:integration
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-artifacts
+          path: artifacts/
+          if-no-files-found: ignore

@@ -209,10 +209,17 @@ describe.skipIf(!isMac)('real simulator', () => {
 
   describe.skipIf(!hasIdb)('interface, through idb', () => {
     beforeAll(async () => {
-      // Give the Simulator window time to come up before the first read.
+      // idb reads accessibility through the Simulator window: make sure it is up.
+      await ok('open_simulator_app');
       await new Promise((resolve) => setTimeout(resolve, 10_000));
       await ok('launch_app', { bundleId: SETTINGS, terminateRunning: true });
-      await ok('ui_wait_for_element', { label: 'General', timeoutSeconds: 60 });
+      try {
+        await ok('ui_wait_for_element', { label: 'General', timeoutSeconds: 60 });
+      } catch (error) {
+        // Leave evidence of what the screen looked like for the CI artifact.
+        await call('screenshot', { device: udid, format: 'png', outputPath: 'artifacts/ui-setup-failure.png' });
+        throw error;
+      }
     });
 
     it('describes the screen compactly', async () => {

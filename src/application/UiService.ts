@@ -1,5 +1,5 @@
 import type { ElementQuery } from '../domain/ElementQuery.js';
-import { ElementNotFoundError, UnsupportedTextError } from '../domain/errors.js';
+import { CommandFailedError, ElementNotFoundError, UnsupportedTextError } from '../domain/errors.js';
 import type { Point } from '../domain/geometry.js';
 import type { UiAutomationGateway } from '../domain/ports/UiAutomationGateway.js';
 import { describeElement, isLabeled, type UiElement, type UiStep } from '../domain/ui.js';
@@ -44,6 +44,11 @@ const POLL_INTERVAL_MS = 400;
 /** Default patience of a tap on an element: enough for a screen transition. */
 const DEFAULT_TAP_TIMEOUT_SECONDS = 3;
 const DEFAULT_WAIT_TIMEOUT_SECONDS = 10;
+/**
+ * How long a plain read of the screen keeps retrying. The accessibility tree is briefly
+ * unavailable while an app launches or a screen transition is in flight.
+ */
+const READ_PATIENCE_MS = 3000;
 /** How many elements an "element not found" error lists to help the client recover. */
 const MAX_LISTED_ELEMENTS = 40;
 
@@ -81,8 +86,12 @@ export class UiService {
       try {
         outcomes.push(await this.execute(device.udid, step));
       } catch (error) {
-        // Best effort: the screen helps the client recover, but must not mask the failure.
-        const screen = await this.labeledElements(device.udid).catch(() => undefined);
+        // Best effort and a single look: the screen helps the client recover, but must
+        // neither mask the failure nor delay reporting it.
+        const screen = await this.ui
+          .describeScreen(device.udid)
+          .then((elements) => elements.filter(isLabeled))
+          .catch(() => undefined);
         return { device, value: { outcomes, failure: { index, error }, screen } };
       }
     }
@@ -110,7 +119,7 @@ export class UiService {
 
   async describeScreen(filter: UiElementFilter = {}, reference?: string): Promise<OnDevice<UiElement[]>> {
     const device = await this.resolver.resolveBooted(reference);
-    const elements = await this.ui.describeScreen(device.udid);
+    const elements = await this.readScreen(device.udid);
     const needle = filter.containing?.trim().toLowerCase();
     const value = elements
       .filter((element) => !filter.meaningfulOnly || isLabeled(element))
@@ -194,12 +203,15 @@ export class UiService {
   private async waitFor(udid: string, query: ElementQuery, timeoutSeconds: number): Promise<UiElement> {
     const deadline = this.clock.now() + timeoutSeconds * 1000;
     for (;;) {
-      const elements = await this.ui.describeScreen(udid);
-      const element = query.select(elements);
+      const elements = await this.tryReadScreen(udid);
+      const element = elements instanceof Error ? undefined : query.select(elements);
       if (element) {
         return element;
       }
       if (this.clock.now() >= deadline) {
+        if (elements instanceof Error) {
+          throw elements;
+        }
         const visible = elements.filter(isLabeled).slice(0, MAX_LISTED_ELEMENTS).map(describeElement);
         throw new ElementNotFoundError(query.describe(), visible);
       }
@@ -207,7 +219,40 @@ export class UiService {
     }
   }
 
+  /**
+   * Reads the screen, retrying for a short while when the read itself fails.
+   * @throws the last failure once the patience runs out.
+   */
+  private async readScreen(udid: string): Promise<UiElement[]> {
+    const deadline = this.clock.now() + READ_PATIENCE_MS;
+    for (;;) {
+      const elements = await this.tryReadScreen(udid);
+      if (!(elements instanceof Error)) {
+        return elements;
+      }
+      if (this.clock.now() >= deadline) {
+        throw elements;
+      }
+      await this.clock.sleep(POLL_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Reads the screen once. A failing command is returned, not thrown, so
+   * callers that poll can treat "could not look" like "not there yet".
+   */
+  private async tryReadScreen(udid: string): Promise<UiElement[] | CommandFailedError> {
+    try {
+      return await this.ui.describeScreen(udid);
+    } catch (error) {
+      if (error instanceof CommandFailedError) {
+        return error;
+      }
+      throw error;
+    }
+  }
+
   private async labeledElements(udid: string): Promise<UiElement[]> {
-    return (await this.ui.describeScreen(udid)).filter(isLabeled);
+    return (await this.readScreen(udid)).filter(isLabeled);
   }
 }

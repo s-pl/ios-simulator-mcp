@@ -92,6 +92,8 @@ export class FakeUiGateway implements UiAutomationGateway {
   /** Screens returned by successive reads; the last one repeats. */
   screens: UiElement[][] = [[]];
   describeCount = 0;
+  /** Number of upcoming screen reads that fail before reads work again. */
+  failingReads = 0;
   failOn: { call: string; error: Error } | undefined;
 
   private record(call: string): void {
@@ -126,6 +128,11 @@ export class FakeUiGateway implements UiAutomationGateway {
     this.describeCount += 1;
     if (this.failOn?.call === 'describe') {
       throw this.failOn.error;
+    }
+    if (this.failingReads > 0) {
+      this.failingReads -= 1;
+      this.describeCount -= 1;
+      throw commandFailure('No translation object returned for simulator.');
     }
     return screen;
   }

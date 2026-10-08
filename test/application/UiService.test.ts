@@ -145,6 +145,29 @@ describe('UiService', () => {
       expect(ui.describeCount).toBe(26);
     });
 
+    it('keeps waiting through reads that fail while an app is launching', async () => {
+      const { service, ui, clock } = setUp();
+      ui.failingReads = 3;
+      await service.perform(tapSignIn);
+      expect(clock.sleeps).toEqual([400, 400, 400]);
+      expect(ui.calls).toEqual(['tap 195,725']);
+    });
+
+    it('reports the read failure, not a missing element, when the screen never becomes readable', async () => {
+      const { service, ui } = setUp();
+      ui.failOn = { call: 'describe', error: commandFailure('No translation object returned') };
+      const failure = service.perform({ ...tapSignIn, timeoutSeconds: 2 } as UiStep);
+      await expect(failure).rejects.toThrow('No translation object returned');
+      await expect(failure).rejects.not.toBeInstanceOf(ElementNotFoundError);
+    });
+
+    it('does not retry errors that are not command failures', async () => {
+      const { service, ui, clock } = setUp();
+      ui.failOn = { call: 'describe', error: new TypeError('bug') };
+      await expect(service.perform(tapSignIn)).rejects.toBeInstanceOf(TypeError);
+      expect(clock.sleeps).toEqual([]);
+    });
+
     it('returns the element it waited for without tapping', async () => {
       const { service, ui } = setUp();
       ui.screens = [login, home];
@@ -256,6 +279,28 @@ describe('UiService', () => {
       ui.screens = [[...login, tagged]];
       expect((await service.describeScreen({ containing: 'sign' })).value).toEqual([signIn, tagged]);
       expect((await service.describeScreen({ containing: 'nothing' })).value).toEqual([]);
+    });
+
+    it('retries a read that fails transiently', async () => {
+      const { service, ui, clock } = setUp();
+      ui.failingReads = 2;
+      expect((await service.describeScreen()).value).toEqual(login);
+      expect(clock.sleeps).toEqual([400, 400]);
+    });
+
+    it('gives up on a screen that stays unreadable after a few seconds', async () => {
+      const { service, ui, clock } = setUp();
+      ui.failOn = { call: 'describe', error: commandFailure('No translation object returned') };
+      await expect(service.describeScreen()).rejects.toThrow('No translation object returned');
+      expect(clock.now()).toBe(3200);
+    });
+
+    it('is patient when reading the screen after an action', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [home];
+      ui.failingReads = 1;
+      const { value } = await service.perform({ kind: 'pressButton', button: 'HOME' }, { describeAfter: true });
+      expect(value.screen).toEqual([dashboard]);
     });
 
     it('describes the element at a point', async () => {
