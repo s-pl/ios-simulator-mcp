@@ -388,6 +388,49 @@ describe('SimctlEnvironmentGateway', () => {
   });
 });
 
+describe('SimctlEnvironmentGateway pasteboard retries', () => {
+  const TIMEOUT = 'An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=60):\nOperation timed out';
+
+  /** A runner whose pasteboard commands time out a number of times before working. */
+  function flakyRunner(failures: number): FakeCommandRunner {
+    let remaining = failures;
+    const runner = new FakeCommandRunner();
+    const respond = (): string => {
+      if (remaining > 0) {
+        remaining -= 1;
+        throw new CommandFailedError('xcrun simctl pb', 60, TIMEOUT);
+      }
+      return 'clipboard text';
+    };
+    return runner.on('xcrun simctl pbcopy', respond).on('xcrun simctl pbpaste', respond);
+  }
+
+  it('repeats a pasteboard command that times out', async () => {
+    const runner = flakyRunner(2);
+    await new SimctlEnvironmentGateway(mac(runner)).setClipboard(U, 'hola');
+    expect(runner.matching('xcrun simctl pbcopy')).toHaveLength(3);
+    expect(runner.calls.every((call) => call.stdin === 'hola')).toBe(true);
+  });
+
+  it('also retries reading', async () => {
+    const runner = flakyRunner(1);
+    expect(await new SimctlEnvironmentGateway(mac(runner)).getClipboard(U)).toBe('clipboard text');
+    expect(runner.matching('xcrun simctl pbpaste')).toHaveLength(2);
+  });
+
+  it('gives up after three attempts', async () => {
+    const runner = flakyRunner(5);
+    await expect(new SimctlEnvironmentGateway(mac(runner)).setClipboard(U, 'hola')).rejects.toThrow('timed out');
+    expect(runner.matching('xcrun simctl pbcopy')).toHaveLength(3);
+  });
+
+  it('does not retry other failures', async () => {
+    const runner = new FakeCommandRunner().fail('xcrun simctl pbcopy', 'Invalid device');
+    await expect(new SimctlEnvironmentGateway(mac(runner)).setClipboard(U, 'hola')).rejects.toThrow('Invalid device');
+    expect(runner.matching('xcrun simctl pbcopy')).toHaveLength(1);
+  });
+});
+
 describe('SimctlLogGateway', () => {
   it('runs log show inside the simulator', async () => {
     const runner = new FakeCommandRunner().on('xcrun simctl spawn', 'Timestamp Ty\nentry\n');

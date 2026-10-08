@@ -274,19 +274,44 @@ describe.skipIf(!isMac)('real simulator', () => {
       const text = 'Añadir canción';
       await ok('set_clipboard', { text });
       await ok('launch_app', { bundleId: SETTINGS, terminateRunning: true });
-      const result = await call('ui_sequence', {
+
+      // 1. Open the search of Settings and see which element is the text field.
+      const opened = await call('ui_sequence', {
         device: udid,
         steps: [
-          { action: 'tap_element', type: 'SearchField', timeoutSeconds: 30 },
-          { action: 'wait', seconds: 2 },
-          { action: 'tap_element', type: 'SearchField', durationSeconds: 1.5, timeoutSeconds: 10 },
+          { action: 'tap_element', identifier: 'com.apple.settings.search', timeoutSeconds: 30 },
+          { action: 'wait', seconds: 3 },
+        ],
+        describeAfter: true,
+      });
+      console.log(`PASTE FLOW 1 (search opened):\n${opened.text}`);
+      const field = /^(?:SearchField|TextField)\b.*@\((\d+),(\d+)\)/m.exec(opened.text);
+      if (!field) {
+        console.log('PASTE FLOW: no text field found, cannot continue');
+        return;
+      }
+
+      // 2. Long-press it to bring up the edit menu.
+      const pressed = await call('ui_tap', {
+        device: udid,
+        x: Number(field[1]),
+        y: Number(field[2]),
+        durationSeconds: 1.5,
+        describeAfter: true,
+      });
+      console.log(`PASTE FLOW 2 (after long press):\n${pressed.text}`);
+
+      // 3. Choose Paste and look for the text.
+      const pasted = await call('ui_sequence', {
+        device: udid,
+        steps: [
           { action: 'tap_element', label: 'Paste', timeoutSeconds: 8 },
           { action: 'wait', seconds: 2 },
         ],
         describeAfter: true,
       });
-      const pasted = !result.isError && result.text.includes(text);
-      console.log(`PASTE FLOW: ${pasted ? 'worked' : 'did not work'}\n${result.text.split('\n').slice(0, 30).join('\n')}`);
+      console.log(`PASTE FLOW 3 (after paste):\n${pasted.text}`);
+      console.log(`PASTE FLOW: ${!pasted.isError && pasted.text.includes(text) ? 'worked' : 'did not work'}`);
       await ok('ui_press_button', { button: 'HOME' });
     });
 
