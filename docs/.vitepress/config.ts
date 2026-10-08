@@ -46,7 +46,19 @@ export default defineConfig({
     ],
 
     socialLinks: [{ icon: 'github', link: repository }],
-    search: { provider: 'local' },
+    search: {
+      provider: 'local',
+      options: {
+        translations: {
+          button: { buttonText: 'Buscar', buttonAriaLabel: 'Buscar' },
+          modal: {
+            noResultsText: 'Sin resultados para',
+            resetButtonTitle: 'Borrar la búsqueda',
+            footer: { selectText: 'seleccionar', navigateText: 'navegar', closeText: 'cerrar' },
+          },
+        },
+      },
+    },
     editLink: {
       pattern: `${repository}/edit/main/docs/:path`,
       text: 'Editar esta página en GitHub',
