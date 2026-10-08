@@ -47,9 +47,25 @@ export class CommandFailedError extends SimulatorError {
     readonly exitCode: number | null,
     readonly stderr: string,
     options?: ErrorOptions,
+    /** Explanation of the likely cause and how to fix it, when one is known. */
+    readonly hint?: string,
   ) {
     const detail = stderr.trim() || 'no error output';
-    super(`Command failed (exit code ${exitCode ?? 'unknown'}): ${commandLine}\n${detail}`, options);
+    super(
+      `Command failed (exit code ${exitCode ?? 'unknown'}): ${commandLine}\n${detail}` +
+        (hint ? `\nHint: ${hint}` : ''),
+      options,
+    );
+  }
+
+  /** Same failure with different error output, e.g. stripped of noise. */
+  withOutput(stderr: string): CommandFailedError {
+    return new CommandFailedError(this.commandLine, this.exitCode, stderr, { cause: this.cause }, this.hint);
+  }
+
+  /** Same failure, explained. */
+  withHint(hint: string): CommandFailedError {
+    return new CommandFailedError(this.commandLine, this.exitCode, this.stderr, { cause: this.cause }, hint);
   }
 }
 
@@ -147,4 +163,65 @@ export class NoActiveRecordingError extends SimulatorError {
 /** The client supplied a value that is syntactically valid but not acceptable. */
 export class InvalidArgumentError extends SimulatorError {
   readonly code = 'INVALID_ARGUMENT';
+}
+
+/** No element on screen matches the query, even after waiting. */
+export class ElementNotFoundError extends SimulatorError {
+  readonly code = 'ELEMENT_NOT_FOUND';
+
+  constructor(
+    readonly query: string,
+    readonly visible: readonly string[],
+  ) {
+    const onScreen =
+      visible.length > 0 ? `Elements on screen:\n${visible.join('\n')}` : 'The screen exposes no labeled elements.';
+    super(`No element on screen matches ${query}. ${onScreen}`);
+  }
+}
+
+/** Several distinct elements match the query and no index was given. */
+export class AmbiguousElementError extends SimulatorError {
+  readonly code = 'AMBIGUOUS_ELEMENT';
+
+  constructor(
+    readonly query: string,
+    readonly candidates: readonly string[],
+  ) {
+    const numbered = candidates.map((candidate, index) => `${index}: ${candidate}`).join('\n');
+    super(`${candidates.length} elements match ${query}. Narrow the query or pass "index":\n${numbered}`);
+  }
+}
+
+/** The operation targets an app that is not installed on the simulator. */
+export class AppNotInstalledError extends SimulatorError {
+  readonly code = 'APP_NOT_INSTALLED';
+
+  constructor(
+    readonly bundleId: string,
+    deviceLabel: string,
+  ) {
+    super(`App "${bundleId}" is not installed on ${deviceLabel}. Use list_apps to see the installed bundle ids.`);
+  }
+}
+
+/** A file or directory the client referred to does not exist on the host. */
+export class PathNotFoundError extends SimulatorError {
+  readonly code = 'PATH_NOT_FOUND';
+
+  constructor(readonly path: string) {
+    super(`"${path}" does not exist on this Mac. Pass the absolute path of an existing file.`);
+  }
+}
+
+/** The text contains characters the keyboard automation cannot type. */
+export class UnsupportedTextError extends SimulatorError {
+  readonly code = 'UNSUPPORTED_TEXT';
+
+  constructor(readonly characters: readonly string[]) {
+    super(
+      `Cannot type ${characters.map((character) => JSON.stringify(character)).join(', ')}: the simulated keyboard ` +
+        'only types unaccented Latin letters, digits and common punctuation. To enter this text, copy it with ' +
+        'set_clipboard, long-press the text field and tap the "Paste" item of the menu that appears.',
+    );
+  }
 }

@@ -57,6 +57,7 @@ claude mcp add ios-simulator -- node "$(pwd)/dist/index.js"
 | `IOS_SIMULATOR_MCP_XCRUN_PATH` | `xcrun` | Ejecutable de `xcrun`. |
 | `IOS_SIMULATOR_MCP_IDB_PATH` | `idb` | Ejecutable de `idb`. Útil si el cliente MCP no hereda tu `PATH` (p. ej. `~/.local/bin/idb`). |
 | `IOS_SIMULATOR_MCP_OUTPUT_DIR` | `$TMPDIR/ios-simulator-mcp` | Carpeta por defecto para las grabaciones. |
+| `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | Tiempo durante el que se reutiliza la lista de simuladores. `0` desactiva la caché. |
 
 ## Herramientas
 
@@ -75,12 +76,15 @@ Casi todas aceptan un parámetro opcional `device` (UDID o nombre exacto). Si se
 | | `list_apps` | Apps instaladas, filtrables por `User`/`System`. |
 | | `open_url` | Abre una URL o deep link. |
 | | `get_app_container` | Ruta en el Mac del contenedor de la app. |
-| UI (idb) | `ui_describe_screen` | Elementos de accesibilidad con su `tapPoint`. |
+| UI (idb) | `ui_describe_screen` | Elementos en pantalla, una línea por elemento con su punto de toque. |
 | | `ui_describe_point` | Elemento en una coordenada. |
-| | `ui_tap` / `ui_swipe` | Toque (o pulsación larga) / deslizamiento. |
-| | `ui_type_text` | Escribe en el campo con foco. |
+| | `ui_tap_element` | Busca un elemento por texto, identificador o tipo y lo toca. |
+| | `ui_wait_for_element` | Espera a que un elemento esté en pantalla. |
+| | `ui_sequence` | Ejecuta varios pasos de interfaz en una sola llamada. |
+| | `ui_tap` / `ui_swipe` | Toque (o pulsación larga) / deslizamiento por coordenadas. |
+| | `ui_type_text` | Escribe en el campo con foco (solo texto sin acentos). |
 | | `ui_press_button` / `ui_press_key` | Botón físico (HOME, LOCK…) / tecla por código HID. |
-| Multimedia | `screenshot` | Captura de pantalla (devuelve la imagen). |
+| Multimedia | `screenshot` | Captura de pantalla, reducida a puntos por defecto. |
 | | `start_recording` / `stop_recording` | Graba la pantalla a `.mp4`. |
 | | `add_media` | Añade fotos/vídeos a la fototeca. |
 | Entorno | `set_appearance` | Modo claro/oscuro. |
@@ -88,11 +92,34 @@ Casi todas aceptan un parámetro opcional `device` (UDID o nombre exacto). Si se
 | | `set_status_bar` | Fuerza hora, red y batería de la barra de estado. |
 | | `set_permission` | Concede/revoca/resetea permisos de privacidad. |
 | | `send_push_notification` | Envía una push simulada (payload APNs). |
+| | `set_clipboard` / `get_clipboard` | Escribe y lee el portapapeles del simulador. |
 | Logs | `get_logs` | Logs recientes, filtrables por proceso o texto. |
 
-**Coordenadas:** las herramientas `ui_*` trabajan en *puntos*, no en píxeles de la captura
-(píxeles ÷ escala del dispositivo, normalmente 3 en iPhone y 2 en iPad). Lo fiable es tomar el
-`tapPoint` de `ui_describe_screen`.
+**Coordenadas:** las herramientas `ui_*` trabajan en *puntos*. Las capturas se devuelven en puntos
+por defecto, así que sus posiciones sirven directamente para `ui_tap`.
+
+### Pensado para ser rápido
+
+Lo que más tarda al manejar el simulador desde un agente es cada ida y vuelta con el modelo. El
+servidor las reduce:
+
+- `ui_tap_element` localiza y toca en una llamada, sin pedir coordenadas antes.
+- Cualquier acción acepta `describeAfter: true` y devuelve la pantalla resultante.
+- `ui_sequence` ejecuta un flujo completo (rellenar un formulario, por ejemplo) de una vez.
+- Las respuestas son compactas: una línea por elemento o por app, y capturas en puntos.
+- La lista de simuladores se reutiliza unos segundos entre llamadas.
+
+Más detalles en [Trabajar rápido](https://s-pl.github.io/ios-simulator-mcp/guia/rendimiento).
+
+### Limitaciones conocidas
+
+- `ui_type_text` no escribe tildes, ñ ni emojis (limitación de `idb`). Alternativa: `set_clipboard`
+  y pegar.
+- Los deslizamientos desde un borde no abren el Centro de notificaciones ni el de control.
+- Tras lanzar una app la pantalla puede salir negra unos segundos; espera con
+  `ui_wait_for_element`.
+
+Explicadas en [Limitaciones conocidas](https://s-pl.github.io/ios-simulator-mcp/guia/limitaciones).
 
 ## Arquitectura
 
@@ -145,7 +172,7 @@ Decisiones de diseño:
 
 ```bash
 npm run typecheck          # comprueba tipos (src + test)
-npm test                   # tests unitarios y e2e en memoria (no necesitan Mac)
+npm test                   # compila y ejecuta los tests unitarios y e2e (no necesitan Mac)
 npm run test:integration   # tests contra un simulador real (solo macOS)
 npm run build              # compila a dist/
 npm run docs:dev           # sirve la documentación en local

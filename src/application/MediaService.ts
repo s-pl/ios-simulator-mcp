@@ -6,10 +6,11 @@ import {
   NoActiveRecordingError,
   RecordingAlreadyActiveError,
 } from '../domain/errors.js';
-import type { ImageFormat, RecordingSession, Screenshot, VideoCodec } from '../domain/media.js';
+import type { ImageFormat, RecordingSession, Resolution, Screenshot, VideoCodec } from '../domain/media.js';
+import type { DeviceGateway } from '../domain/ports/DeviceGateway.js';
 import type { MediaGateway } from '../domain/ports/MediaGateway.js';
-import type { OnDevice } from './OnDevice.js';
 import type { DeviceResolver } from './DeviceResolver.js';
+import type { OnDevice } from './OnDevice.js';
 
 export interface MediaServiceOptions {
   /** Directory where recordings are written when the client gives no path. */
@@ -20,6 +21,8 @@ export interface MediaServiceOptions {
 
 export interface ScreenshotRequest {
   readonly format?: ImageFormat;
+  /** Defaults to `points`: a smaller image whose positions are UI coordinates. */
+  readonly resolution?: Resolution;
   /** Keep a copy of the image at this host path. */
   readonly outputPath?: string;
 }
@@ -49,6 +52,7 @@ export class MediaService {
 
   constructor(
     private readonly media: MediaGateway,
+    private readonly devices: DeviceGateway,
     private readonly resolver: DeviceResolver,
     options: MediaServiceOptions,
   ) {
@@ -56,10 +60,25 @@ export class MediaService {
     this.now = options.now ?? (() => new Date());
   }
 
+  /**
+   * Captures the screen. By default the image is reduced to one pixel per
+   * point: it costs a fraction of the tokens of a native capture and its
+   * coordinates can be passed straight to the UI tools.
+   */
   async screenshot(request: ScreenshotRequest = {}, reference?: string): Promise<OnDevice<Screenshot>> {
     const device = await this.resolver.resolveBooted(reference);
-    const value = await this.media.captureScreenshot(device.udid, request.format ?? 'jpeg', request.outputPath);
-    return { device, value };
+    const deviceScale = device.deviceTypeIdentifier
+      ? await this.devices.screenScale(device.deviceTypeIdentifier)
+      : undefined;
+    const wantsPoints = (request.resolution ?? 'points') === 'points';
+
+    const image = await this.media.captureScreenshot(device.udid, request.format ?? 'jpeg', {
+      outputPath: request.outputPath,
+      downscaleBy: wantsPoints && deviceScale && deviceScale > 1 ? deviceScale : undefined,
+    });
+    // A 1x device needs no downscaling: its pixels already are points.
+    const inPoints = image.downscaled || deviceScale === 1;
+    return { device, value: { ...image, coordinateSpace: inPoints ? 'points' : 'pixels', deviceScale } };
   }
 
   /** Starts recording the screen of a device and returns the destination file. */

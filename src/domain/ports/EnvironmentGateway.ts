@@ -16,6 +16,12 @@ export interface EnvironmentGateway {
 
   changePermission(udid: string, change: PermissionChange): Promise<void>;
 
+  /** Replaces the text on the simulator clipboard. */
+  setClipboard(udid: string, text: string): Promise<void>;
+
+  /** Text currently on the simulator clipboard. */
+  getClipboard(udid: string): Promise<string>;
+
   /** Delivers a simulated remote notification with the given APNs payload. */
   sendPushNotification(udid: string, bundleId: string, payload: Record<string, unknown>): Promise<void>;
 }

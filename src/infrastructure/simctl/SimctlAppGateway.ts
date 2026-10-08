@@ -1,4 +1,4 @@
-import { UnexpectedOutputError } from '../../domain/errors.js';
+import { CommandFailedError, UnexpectedOutputError } from '../../domain/errors.js';
 import type {
   AppContainerKind,
   AppType,
@@ -7,6 +7,7 @@ import type {
   LaunchResult,
 } from '../../domain/InstalledApp.js';
 import type { AppGateway } from '../../domain/ports/AppGateway.js';
+import { existingPath } from '../host/paths.js';
 import type { SimulatorHost } from '../host/SimulatorHost.js';
 
 /** Installing copies the whole bundle into the simulator, which can be slow for big apps. */
@@ -28,7 +29,7 @@ export class SimctlAppGateway implements AppGateway {
   constructor(private readonly host: SimulatorHost) {}
 
   async install(udid: string, appPath: string): Promise<void> {
-    await this.host.simctl(['install', udid, appPath], { timeoutMs: INSTALL_TIMEOUT_MS });
+    await this.host.simctl(['install', udid, await existingPath(appPath)], { timeoutMs: INSTALL_TIMEOUT_MS });
   }
 
   async uninstall(udid: string, bundleId: string): Promise<void> {
@@ -49,6 +50,19 @@ export class SimctlAppGateway implements AppGateway {
 
   async terminate(udid: string, bundleId: string): Promise<void> {
     await this.host.simctl(['terminate', udid, bundleId]);
+  }
+
+  async isInstalled(udid: string, bundleId: string): Promise<boolean> {
+    // Much cheaper than listing every app: simctl fails when the bundle id is unknown.
+    try {
+      await this.host.simctl(['get_app_container', udid, bundleId, 'app']);
+      return true;
+    } catch (error) {
+      if (error instanceof CommandFailedError) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   async listInstalled(udid: string): Promise<InstalledApp[]> {

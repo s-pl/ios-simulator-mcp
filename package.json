@@ -1,6 +1,6 @@
 {
   "name": "ios-simulator-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server to control the iOS Simulator (devices, apps, UI, media, environment and logs).",
   "type": "module",
   "main": "dist/index.js",
@@ -18,13 +18,14 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
-    "test": "vitest run",
+    "test": "npm run build && vitest run",
     "prepare": "npm run build",
     "docs:tools": "npm run build && node scripts/generate-tool-docs.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "test:watch": "vitest"
   },
   "keywords": [
     "mcp",

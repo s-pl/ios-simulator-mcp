@@ -18,9 +18,9 @@ infrastructure/   Adaptadores: simctl, idb, SimulatorHost, CommandRunner
 | Capa | Responsabilidad | Piezas principales |
 | --- | --- | --- |
 | `src/domain/` | Modelo y contratos, sin dependencias externas. | `Device`, `Runtime`, `Point`, `SimulatorError`, `ports/*Gateway` |
-| `src/application/` | Reglas de negocio y orquestación. | `DeviceResolver`, `DeviceService`, `AppService`, `UiService`, `MediaService`, `EnvironmentService`, `LogService` |
+| `src/application/` | Reglas de negocio y orquestación. | `DeviceCatalog`, `DeviceResolver`, `DeviceService`, `AppService`, `UiService`, `MediaService`, `EnvironmentService`, `LogService` |
 | `src/infrastructure/` | Comunicación con el sistema. | `NodeCommandRunner`, `SimulatorHost`, `Simctl*Gateway`, `IdbUiAutomationGateway` |
-| `src/mcp/` | Exponer los casos de uso como herramientas MCP. | `ToolDefinition`, `*Tools`, `SimulatorMcpServer` |
+| `src/mcp/` | Exponer los casos de uso como herramientas MCP. | `ToolDefinition`, `*Tools`, `presenters`, `SimulatorMcpServer` |
 | `src/container.ts` | Único lugar que conecta las capas. | `createContainer()` |
 
 ## Estructura de carpetas
@@ -38,7 +38,7 @@ src/
 │   ├── simctl/       Gateways sobre xcrun simctl
 │   └── idb/          Gateway de automatización de interfaz
 ├── mcp/
-│   ├── ToolDefinition.ts, responses.ts, schemas.ts
+│   ├── ToolDefinition.ts, responses.ts, presenters.ts, schemas.ts
 │   ├── SimulatorMcpServer.ts
 │   └── tools/        Un ToolProvider por grupo de herramientas
 ├── config.ts
@@ -79,10 +79,44 @@ tratamiento de errores.
 en macOS y aplica un tiempo máximo por defecto para que una herramienta bloqueada no cuelgue el
 servidor.
 
+### Pasos de interfaz como datos
+
+Cada interacción es un `UiStep`: un valor del dominio, no una llamada. `UiService` ejecuta uno o
+muchos por el mismo camino, resolviendo el dispositivo una sola vez. Por eso tocar un elemento,
+encadenar una secuencia o devolver la pantalla resultante comparten implementación, y por eso
+`ui_sequence` no necesita una herramienta distinta por tipo de paso.
+
+La búsqueda de elementos es lógica de dominio (`ElementQuery`): coincidencia exacta antes que
+parcial, y contenedores anidados tratados como un único destino. No depende de `idb`.
+
+### Caché que solo se cree para respuestas positivas
+
+`DeviceCatalog` reutiliza la lista de simuladores durante unos segundos. `DeviceResolver` nunca
+informa de un fallo a partir de datos en caché: antes vuelve a consultar. Las operaciones que
+cambian el estado de un simulador invalidan la caché, incluso si fallan a medias.
+
+### Presentación pensada para un modelo
+
+Todo lo que devuelve una herramienta lo lee un modelo y cuesta tokens. Los formatos de
+`mcp/presenters.ts` son compactos a propósito: una línea por elemento, sin puntuación de JSON y
+sin campos sobre los que el cliente no pueda actuar.
+
+### El tiempo es una dependencia
+
+Las esperas y la caducidad usan un `Clock` inyectable. Los tests lo sustituyen por un reloj falso
+y comprueban esperas de varios segundos de forma instantánea.
+
+### Errores con solución
+
+Cuando la causa de un fallo es conocida, el error la explica: `CommandFailedError` admite una
+línea `Hint:`, los tracebacks de Python de `idb` se reducen a su mensaje, y las comprobaciones
+previas (rutas, URL, apps instaladas, texto tecleable) sustituyen errores internos por errores de
+dominio.
+
 ### Estado acotado
 
-El único estado del servidor son las grabaciones en curso, encapsuladas en `MediaService` y
-liberadas al cerrar.
+El estado del servidor se limita a las grabaciones en curso, encapsuladas en `MediaService` y
+liberadas al cerrar, y a la caché de la lista de simuladores.
 
 ### Operaciones destructivas explícitas
 

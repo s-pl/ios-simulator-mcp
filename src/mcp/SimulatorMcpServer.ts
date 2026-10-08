@@ -9,11 +9,19 @@ export interface ServerInfo {
   readonly version: string;
 }
 
-const INSTRUCTIONS =
-  'Controls the iOS Simulator on this Mac. Typical flow: list_devices -> boot_device -> ' +
-  'install_app / launch_app -> ui_describe_screen to find elements -> ui_tap / ui_type_text -> ' +
-  'screenshot to verify. Most tools accept an optional "device" (UDID or name) and default to ' +
-  'the only booted simulator. UI coordinates are always in points, not screenshot pixels.';
+const INSTRUCTIONS = [
+  'Controls the iOS Simulator on this Mac.',
+  'Typical flow: list_devices -> boot_device -> install_app / launch_app -> interact -> verify.',
+  'Most tools accept an optional "device" (UDID or name) and default to the only booted simulator.',
+  'To be fast, keep the number of calls low: tap by text with ui_tap_element instead of looking up ' +
+    'coordinates, pass describeAfter: true to get the resulting screen back from an action, and send ' +
+    'flows you can plan ahead as a single ui_sequence.',
+  'Read the screen with ui_describe_screen (text, cheap) and keep screenshot for visual checks.',
+  'UI coordinates are in points; screenshots are returned in points by default.',
+  'After launching an app the screen can be black for a few seconds while it loads: wait with ' +
+    'ui_wait_for_element instead of acting or capturing immediately.',
+  'ui_type_text only types unaccented Latin text; for anything else use set_clipboard and paste.',
+].join('\n');
 
 /**
  * The MCP face of the application: publishes tool definitions through the MCP

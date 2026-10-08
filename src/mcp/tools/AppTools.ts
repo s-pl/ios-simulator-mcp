@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import type { AppService } from '../../application/AppService.js';
 import { APP_CONTAINER_KINDS } from '../../domain/InstalledApp.js';
-import { json, text } from '../responses.js';
+import { formatApps } from '../presenters.js';
+import { text } from '../responses.js';
 import { bundleIdParam, deviceParam } from '../schemas.js';
 import { defineTool, Hints, type AnyToolDefinition, type ToolProvider } from '../ToolDefinition.js';
 
@@ -19,7 +20,7 @@ export class AppTools implements ToolProvider {
           'Installs an app built for the simulator from a .app bundle (or .ipa) on the Mac. ' +
           'Reinstalling replaces the binary and keeps the app data.',
         inputSchema: {
-          appPath: z.string().min(1).describe('Absolute path of the .app bundle on the Mac.'),
+          appPath: z.string().min(1).describe('Absolute path of an existing .app bundle on the Mac.'),
           device: deviceParam,
         },
         annotations: Hints.mutating,
@@ -32,7 +33,7 @@ export class AppTools implements ToolProvider {
       defineTool({
         name: 'uninstall_app',
         title: 'Uninstall app',
-        description: 'Uninstalls an app, permanently deleting its data.',
+        description: 'Uninstalls an app, permanently deleting its data. Fails if the app is not installed.',
         inputSchema: { bundleId: bundleIdParam, device: deviceParam },
         annotations: Hints.destructive,
         execute: async ({ bundleId, device }) => {
@@ -44,7 +45,9 @@ export class AppTools implements ToolProvider {
       defineTool({
         name: 'launch_app',
         title: 'Launch app',
-        description: 'Launches an installed app and returns its process id.',
+        description:
+          'Launches an installed app and returns its process id. The screen can stay black for a few ' +
+          'seconds while the app loads: use ui_wait_for_element rather than acting immediately.',
         inputSchema: {
           bundleId: bundleIdParam,
           arguments: z.array(z.string()).optional().describe('Command line arguments passed to the app.'),
@@ -81,7 +84,9 @@ export class AppTools implements ToolProvider {
       defineTool({
         name: 'list_apps',
         title: 'List installed apps',
-        description: 'Lists the apps installed in a simulator with their bundle id, name and version.',
+        description:
+          'Lists the apps installed in a simulator, one per line: bundle id, name and version. ' +
+          'Use get_app_container when you need the path of an app on the Mac.',
         inputSchema: {
           type: z
             .enum(['User', 'System'])
@@ -92,7 +97,7 @@ export class AppTools implements ToolProvider {
         annotations: Hints.readOnly,
         execute: async ({ type, device }) => {
           const { device: target, value } = await this.apps.list(type, device);
-          return json({ device: target.label, apps: value });
+          return text(formatApps(target, value));
         },
       }),
 
@@ -103,7 +108,7 @@ export class AppTools implements ToolProvider {
           'Opens a URL in the simulator: a web page in Safari, or a deep link / universal link ' +
           'handled by an installed app (e.g. myapp://profile/42).',
         inputSchema: {
-          url: z.string().min(1).describe('URL to open, including its scheme.'),
+          url: z.string().min(1).describe('URL to open. It must include its scheme, e.g. https:// or myapp://.'),
           device: deviceParam,
         },
         annotations: Hints.mutating,

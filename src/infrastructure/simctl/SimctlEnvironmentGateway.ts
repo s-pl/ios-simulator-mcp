@@ -49,6 +49,15 @@ export class SimctlEnvironmentGateway implements EnvironmentGateway {
     await this.host.simctl(['privacy', udid, change.action, change.service, ...target]);
   }
 
+  async setClipboard(udid: string, text: string): Promise<void> {
+    await this.host.simctl(['pbcopy', udid], { stdin: text });
+  }
+
+  async getClipboard(udid: string): Promise<string> {
+    const { stdout } = await this.host.simctl(['pbpaste', udid]);
+    return stdout;
+  }
+
   async sendPushNotification(udid: string, bundleId: string, payload: Record<string, unknown>): Promise<void> {
     // "-" makes simctl read the payload from standard input, avoiding a temp file.
     await this.host.simctl(['push', udid, bundleId, '-'], { stdin: JSON.stringify(payload) });

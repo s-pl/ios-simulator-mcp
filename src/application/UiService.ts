@@ -1,7 +1,9 @@
-import type { Device } from '../domain/Device.js';
+import type { ElementQuery } from '../domain/ElementQuery.js';
+import { ElementNotFoundError, UnsupportedTextError } from '../domain/errors.js';
 import type { Point } from '../domain/geometry.js';
 import type { UiAutomationGateway } from '../domain/ports/UiAutomationGateway.js';
-import type { HardwareButton, SwipeOptions, UiElement } from '../domain/ui.js';
+import { describeElement, isLabeled, type UiElement, type UiStep } from '../domain/ui.js';
+import { SystemClock, type Clock } from './Clock.js';
 import type { DeviceResolver } from './DeviceResolver.js';
 import type { OnDevice } from './OnDevice.js';
 
@@ -13,41 +15,97 @@ export interface UiElementFilter {
   readonly containing?: string;
 }
 
-/** Use cases to drive the user interface of a booted simulator. */
+export interface RunOptions {
+  /** Read the screen once the steps have run, saving the client a second call. */
+  readonly describeAfter?: boolean;
+}
+
+/** What a step did. */
+export interface StepOutcome {
+  readonly step: UiStep;
+  /** The element the step located, for steps that target one. */
+  readonly element?: UiElement;
+}
+
+/** Result of running a list of steps. */
+export interface UiRun {
+  /** Outcomes of the steps that completed, in order. */
+  readonly outcomes: readonly StepOutcome[];
+  /** The step that stopped the run, if any. Later steps were not attempted. */
+  readonly failure?: { readonly index: number; readonly error: unknown };
+  /** Labeled elements on screen afterwards: on request, and always after a failure. */
+  readonly screen?: readonly UiElement[];
+}
+
+/** Time for animations to finish before the resulting screen is read. */
+const SETTLE_MS = 600;
+/** Pause between two looks at the screen while waiting for an element. */
+const POLL_INTERVAL_MS = 400;
+/** Default patience of a tap on an element: enough for a screen transition. */
+const DEFAULT_TAP_TIMEOUT_SECONDS = 3;
+const DEFAULT_WAIT_TIMEOUT_SECONDS = 10;
+/** How many elements an "element not found" error lists to help the client recover. */
+const MAX_LISTED_ELEMENTS = 40;
+
+const KEY_RETURN = 40;
+const KEY_TAB = 43;
+/** Characters the simulated hardware keyboard can produce. */
+const TYPEABLE = /^[\x20-\x7E]$/;
+
+/**
+ * Use cases to drive the user interface of a booted simulator.
+ *
+ * Every interaction is a {@link UiStep}. Steps run through a single path,
+ * {@link run}, whether a client sends one or a whole sequence: the device is
+ * resolved once, steps execute back to back, and the resulting screen can be
+ * returned in the same response. This is what keeps the number of round trips
+ * between the model and the simulator low.
+ */
 export class UiService {
   constructor(
     private readonly ui: UiAutomationGateway,
     private readonly resolver: DeviceResolver,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
-  async tap(point: Point, durationSeconds?: number, reference?: string): Promise<Device> {
+  /**
+   * Runs steps in order and stops at the first one that fails. A failure is
+   * reported in the result, not thrown, so the caller still learns which
+   * steps completed and what the screen looks like.
+   */
+  async run(steps: readonly UiStep[], options: RunOptions = {}, reference?: string): Promise<OnDevice<UiRun>> {
     const device = await this.resolver.resolveBooted(reference);
-    await this.ui.tap(device.udid, point.rounded(), durationSeconds);
-    return device;
+    const outcomes: StepOutcome[] = [];
+
+    for (const [index, step] of steps.entries()) {
+      try {
+        outcomes.push(await this.execute(device.udid, step));
+      } catch (error) {
+        // Best effort: the screen helps the client recover, but must not mask the failure.
+        const screen = await this.labeledElements(device.udid).catch(() => undefined);
+        return { device, value: { outcomes, failure: { index, error }, screen } };
+      }
+    }
+
+    if (!options.describeAfter) {
+      return { device, value: { outcomes } };
+    }
+    await this.clock.sleep(SETTLE_MS);
+    return { device, value: { outcomes, screen: await this.labeledElements(device.udid) } };
   }
 
-  async swipe(from: Point, to: Point, options: SwipeOptions = {}, reference?: string): Promise<Device> {
+  /**
+   * Runs a single step and throws if it fails. Unlike {@link run}, nothing
+   * else is read from the device on failure: the error is all the caller gets.
+   */
+  async perform(step: UiStep, options: RunOptions = {}, reference?: string): Promise<OnDevice<UiRun>> {
     const device = await this.resolver.resolveBooted(reference);
-    await this.ui.swipe(device.udid, from.rounded(), to.rounded(), options);
-    return device;
-  }
-
-  async typeText(text: string, reference?: string): Promise<Device> {
-    const device = await this.resolver.resolveBooted(reference);
-    await this.ui.typeText(device.udid, text);
-    return device;
-  }
-
-  async pressButton(button: HardwareButton, reference?: string): Promise<Device> {
-    const device = await this.resolver.resolveBooted(reference);
-    await this.ui.pressButton(device.udid, button);
-    return device;
-  }
-
-  async pressKey(keyCode: number, reference?: string): Promise<Device> {
-    const device = await this.resolver.resolveBooted(reference);
-    await this.ui.pressKey(device.udid, keyCode);
-    return device;
+    const outcomes = [await this.execute(device.udid, step)];
+    if (!options.describeAfter) {
+      return { device, value: { outcomes } };
+    }
+    await this.clock.sleep(SETTLE_MS);
+    return { device, value: { outcomes, screen: await this.labeledElements(device.udid) } };
   }
 
   async describeScreen(filter: UiElementFilter = {}, reference?: string): Promise<OnDevice<UiElement[]>> {
@@ -55,8 +113,12 @@ export class UiService {
     const elements = await this.ui.describeScreen(device.udid);
     const needle = filter.containing?.trim().toLowerCase();
     const value = elements
-      .filter((element) => !filter.meaningfulOnly || searchableText(element).length > 0)
-      .filter((element) => !needle || searchableText(element).some((text) => text.toLowerCase().includes(needle)));
+      .filter((element) => !filter.meaningfulOnly || isLabeled(element))
+      .filter(
+        (element) =>
+          !needle ||
+          [element.label, element.value, element.identifier].some((text) => text?.toLowerCase().includes(needle)),
+      );
     return { device, value };
   }
 
@@ -65,10 +127,87 @@ export class UiService {
     const value = await this.ui.describePoint(device.udid, point.rounded());
     return { device, value };
   }
-}
 
-function searchableText(element: UiElement): string[] {
-  return [element.label, element.value, element.identifier].filter(
-    (text): text is string => typeof text === 'string' && text.length > 0,
-  );
+  private async execute(udid: string, step: UiStep): Promise<StepOutcome> {
+    switch (step.kind) {
+      case 'tap':
+        await this.ui.tap(udid, step.point.rounded(), step.durationSeconds);
+        return { step };
+      case 'tapElement': {
+        const element = await this.waitFor(udid, step.query, step.timeoutSeconds ?? DEFAULT_TAP_TIMEOUT_SECONDS);
+        await this.ui.tap(udid, element.frame.center.rounded(), step.durationSeconds);
+        return { step, element };
+      }
+      case 'swipe':
+        await this.ui.swipe(udid, step.from.rounded(), step.to.rounded(), step.options);
+        return { step };
+      case 'typeText':
+        await this.typeText(udid, step.text);
+        return { step };
+      case 'pressButton':
+        await this.ui.pressButton(udid, step.button);
+        return { step };
+      case 'pressKey':
+        await this.ui.pressKey(udid, step.keyCode);
+        return { step };
+      case 'wait':
+        await this.clock.sleep(step.seconds * 1000);
+        return { step };
+      case 'waitForElement': {
+        const element = await this.waitFor(udid, step.query, step.timeoutSeconds ?? DEFAULT_WAIT_TIMEOUT_SECONDS);
+        return { step, element };
+      }
+    }
+  }
+
+  /**
+   * Types text through the simulated keyboard. Line breaks and tabs are sent
+   * as key presses. The text is validated up front so nothing is typed when
+   * part of it cannot be.
+   * @throws UnsupportedTextError for characters outside the keyboard's reach (accents, ñ, emoji…).
+   */
+  private async typeText(udid: string, text: string): Promise<void> {
+    const normalised = text.replaceAll('\r\n', '\n');
+    const unsupported = [...new Set(normalised)].filter(
+      (character) => character !== '\n' && character !== '\t' && !TYPEABLE.test(character),
+    );
+    if (unsupported.length > 0) {
+      throw new UnsupportedTextError(unsupported);
+    }
+
+    for (const chunk of normalised.split(/(\n|\t)/)) {
+      if (chunk === '\n') {
+        await this.ui.pressKey(udid, KEY_RETURN);
+      } else if (chunk === '\t') {
+        await this.ui.pressKey(udid, KEY_TAB);
+      } else if (chunk.length > 0) {
+        await this.ui.typeText(udid, chunk);
+      }
+    }
+  }
+
+  /**
+   * Looks for an element, polling the screen until it shows up or the
+   * timeout elapses. An ambiguous query fails immediately: waiting would not
+   * make it less ambiguous.
+   */
+  private async waitFor(udid: string, query: ElementQuery, timeoutSeconds: number): Promise<UiElement> {
+    const deadline = this.clock.now() + timeoutSeconds * 1000;
+    for (;;) {
+      const elements = await this.ui.describeScreen(udid);
+      const element = query.select(elements);
+      if (element) {
+        return element;
+      }
+      if (this.clock.now() >= deadline) {
+        const visible = elements.filter(isLabeled).slice(0, MAX_LISTED_ELEMENTS).map(describeElement);
+        throw new ElementNotFoundError(query.describe(), visible);
+      }
+      await this.clock.sleep(POLL_INTERVAL_MS);
+    }
+  }
+
+  private async labeledElements(udid: string): Promise<UiElement[]> {
+    return (await this.ui.describeScreen(udid)).filter(isLabeled);
+  }
 }

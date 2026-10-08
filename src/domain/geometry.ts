@@ -33,6 +33,19 @@ export class Rect {
     readonly height: number,
   ) {}
 
+  get area(): number {
+    return this.width * this.height;
+  }
+
+  contains(point: Point): boolean {
+    return (
+      point.x >= this.x &&
+      point.x <= this.x + this.width &&
+      point.y >= this.y &&
+      point.y <= this.y + this.height
+    );
+  }
+
   /** Middle of the rectangle: the natural place to tap an element. */
   get center(): Point {
     return new Point(

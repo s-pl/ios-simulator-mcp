@@ -2,7 +2,10 @@ import type { AppContainerKind, InstalledApp, LaunchOptions, LaunchResult } from
 
 /** Management of the applications installed in a booted simulator. */
 export interface AppGateway {
-  /** Installs a `.app` bundle (or `.ipa` built for the simulator) from the host. */
+  /**
+   * Installs a `.app` bundle (or `.ipa` built for the simulator) from the host.
+   * @throws PathNotFoundError when the bundle does not exist.
+   */
   install(udid: string, appPath: string): Promise<void>;
 
   uninstall(udid: string, bundleId: string): Promise<void>;
@@ -10,6 +13,8 @@ export interface AppGateway {
   launch(udid: string, bundleId: string, options?: LaunchOptions): Promise<LaunchResult>;
 
   terminate(udid: string, bundleId: string): Promise<void>;
+
+  isInstalled(udid: string, bundleId: string): Promise<boolean>;
 
   listInstalled(udid: string): Promise<InstalledApp[]>;
 

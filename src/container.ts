@@ -1,4 +1,6 @@
 import { AppService } from './application/AppService.js';
+import type { Clock } from './application/Clock.js';
+import { DeviceCatalog } from './application/DeviceCatalog.js';
 import { DeviceResolver } from './application/DeviceResolver.js';
 import { DeviceService } from './application/DeviceService.js';
 import { EnvironmentService } from './application/EnvironmentService.js';
@@ -27,6 +29,7 @@ import { UiTools } from './mcp/tools/UiTools.js';
 export interface ContainerOverrides {
   readonly runner?: CommandRunner;
   readonly platform?: NodeJS.Platform;
+  readonly clock?: Clock;
 }
 
 /** The assembled application. */
@@ -47,13 +50,14 @@ export function createContainer(config: ServerConfig, overrides: ContainerOverri
   const deviceGateway = new SimctlDeviceGateway(host);
 
   // Application
-  const resolver = new DeviceResolver(deviceGateway);
-  const deviceService = new DeviceService(deviceGateway, resolver);
+  const catalog = new DeviceCatalog(deviceGateway, { ttlMs: config.deviceCacheTtlMs, clock: overrides.clock });
+  const resolver = new DeviceResolver(catalog);
+  const deviceService = new DeviceService(deviceGateway, catalog, resolver);
   const appService = new AppService(new SimctlAppGateway(host), resolver);
-  const mediaService = new MediaService(new SimctlMediaGateway(host), resolver, {
+  const mediaService = new MediaService(new SimctlMediaGateway(host), deviceGateway, resolver, {
     outputDirectory: config.outputDirectory,
   });
-  const uiService = new UiService(new IdbUiAutomationGateway(host, config.idbPath), resolver);
+  const uiService = new UiService(new IdbUiAutomationGateway(host, config.idbPath), resolver, overrides.clock);
   const environmentService = new EnvironmentService(new SimctlEnvironmentGateway(host), resolver);
   const logService = new LogService(new SimctlLogGateway(host), resolver);
 

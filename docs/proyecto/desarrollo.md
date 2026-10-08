@@ -6,7 +6,8 @@
 | --- | --- |
 | `npm run build` | Compila a `dist/`. |
 | `npm run typecheck` | Comprueba los tipos de `src/` y `test/`. |
-| `npm test` | Tests unitarios y de extremo a extremo en memoria. No necesitan un Mac. |
+| `npm test` | Compila y ejecuta los tests unitarios y de extremo a extremo. No necesitan un Mac. |
+| `npm run test:watch` | Ejecuta los tests en modo observación mientras desarrollas. |
 | `npm run test:integration` | Tests contra un simulador real. Solo macOS; arrancan un dispositivo. |
 | `npm run docs:dev` | Sirve esta documentación en local. |
 | `npm run docs:build` | Genera el sitio estático. |
@@ -14,17 +15,30 @@
 
 ## Tests
 
-Hay dos niveles:
+`npm test` ejecuta cinco grupos de tests, que no necesitan un Mac:
 
-- **`npm test`.** Sustituye la ejecución de comandos por un `FakeCommandRunner` y conecta un
-  cliente MCP real al servidor completo mediante un transporte en memoria. Comprueba los comandos
-  exactos que se emitirían, la resolución de dispositivos, el análisis de la salida de `simctl` e
-  `idb` y la presentación de errores. Se ejecuta en cualquier sistema.
-- **`npm run test:integration`.** Arranca un simulador de verdad y ejecuta las herramientas contra
-  él. Las pruebas de interfaz se omiten si `idb` no está instalado.
+| Carpeta | Qué prueba | Qué se sustituye |
+| --- | --- | --- |
+| `test/domain/` | Modelo, búsqueda de elementos, errores. | Nada: es código puro. |
+| `test/application/` | Reglas de cada servicio: caché, esperas, validaciones, secuencias. | Los puertos, por implementaciones en memoria. |
+| `test/infrastructure/` | Comandos que construye cada gateway y análisis de su salida. | La ejecución de comandos. |
+| `test/mcp/` | El servidor completo a través de un cliente MCP real, en memoria. | La ejecución de comandos y el reloj. |
+| `test/process/` | El binario compilado, arrancado como proceso y manejado por stdio. | Nada. |
 
-La integración continua ejecuta el primer nivel en Ubuntu y macOS con Node 20 y 22, y el segundo
-en un runner de macOS.
+`npm run test:integration` añade otro nivel: arranca un simulador de verdad y ejecuta las
+herramientas contra él. Las pruebas de interfaz se omiten si `idb` no está instalado. Es lo que
+demuestra que los comandos que esperan los demás tests son comandos que las herramientas reales
+aceptan.
+
+La integración continua ejecuta `npm test` en Ubuntu y macOS con Node 20 y 22, y los tests de
+integración en un runner de macOS con `idb` instalado.
+
+Utilidades de test en `test/support/`:
+
+- `Harness`: cliente MCP conectado al servidor completo, con comandos y reloj falsos.
+- `FakeCommandRunner`: registra los comandos y responde con salidas preparadas o con fallos.
+- `FakeClock`: reloj que solo avanza cuando el código duerme.
+- `fakes.ts`: implementaciones en memoria de cada puerto del dominio.
 
 ## Añadir una herramienta
 
@@ -50,7 +64,8 @@ defineTool({
 }),
 ```
 
-4. Añade un test en `test/mcp/server.e2e.test.ts` que compruebe el comando emitido.
+4. Añade tests: la regla en `test/application/`, el comando en `test/infrastructure/` y el
+   comportamiento visible en `test/mcp/`. Incluye el nombre en la lista de `protocol.e2e.test.ts`.
 5. Ejecuta `npm run docs:tools` para regenerar la referencia.
 
 ## Documentación

@@ -2,7 +2,7 @@
 
 # Herramientas
 
-El servidor publica 29 herramientas. Esta página se genera a partir del propio servidor,
+El servidor publica 34 herramientas. Esta página se genera a partir del propio servidor,
 así que siempre coincide con el código. Las descripciones están en inglés porque son exactamente
 las que recibe el modelo.
 
@@ -26,7 +26,7 @@ Lists the available simulators with their name, UDID, runtime and state. Use it 
 
 **Boot simulator** · Modifica
 
-Boots a simulator and waits until it is ready to use. Does nothing if it is already running.
+Boots a simulator and waits until it is ready to use. Does nothing if it is already running. If the Simulator window cannot be opened the boot still succeeds and a warning is returned.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -74,14 +74,14 @@ Installs an app built for the simulator from a .app bundle (or .ipa) on the Mac.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
-| `appPath` | `string` | Sí | Absolute path of the .app bundle on the Mac. |
+| `appPath` | `string` | Sí | Absolute path of an existing .app bundle on the Mac. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### uninstall_app
 
 **Uninstall app** · Destructiva
 
-Uninstalls an app, permanently deleting its data.
+Uninstalls an app, permanently deleting its data. Fails if the app is not installed.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -92,7 +92,7 @@ Uninstalls an app, permanently deleting its data.
 
 **Launch app** · Modifica
 
-Launches an installed app and returns its process id.
+Launches an installed app and returns its process id. The screen can stay black for a few seconds while the app loads: use ui_wait_for_element rather than acting immediately.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -116,7 +116,7 @@ Terminates a running app.
 
 **List installed apps** · Lectura
 
-Lists the apps installed in a simulator with their bundle id, name and version.
+Lists the apps installed in a simulator, one per line: bundle id, name and version. Use get_app_container when you need the path of an app on the Mac.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ Opens a URL in the simulator: a web page in Safari, or a deep link / universal l
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
-| `url` | `string` | Sí | URL to open, including its scheme. |
+| `url` | `string` | Sí | URL to open. It must include its scheme, e.g. https:// or myapp://. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### get_app_container
@@ -148,13 +148,13 @@ Returns the path on the Mac of a container of an installed app, so its files (do
 
 ## Interfaz
 
-Estas herramientas requieren [idb](../guia/instalacion#instalar-idb). Las coordenadas se expresan en [puntos](../guia/conceptos#puntos-no-pixeles).
+Estas herramientas requieren [idb](../guia/instalacion#instalar-idb). Las coordenadas se expresan en [puntos](../guia/conceptos#puntos-no-pixeles). Consulta [Trabajar rápido](../guia/rendimiento) para elegir la más eficiente.
 
 ### ui_describe_screen
 
 **Describe screen** · Lectura
 
-Returns the accessibility elements currently on screen (type, label, value, identifier, frame and tap point, all in points). Prefer this over a screenshot to locate elements to tap. Requires idb.
+Lists the accessibility elements on screen, one per line: type, label, value, identifier, the point to tap it at and its size, all in points. Prefer it over a screenshot: it is faster, cheaper and gives exact coordinates. Requires idb.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -174,24 +174,80 @@ Returns the accessibility element located at a screen coordinate. Requires idb.
 | `y` | `number (>= 0)` | Sí | Vertical position, in points. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
+### ui_tap_element
+
+**Tap element** · Modifica
+
+Finds an element by its visible text, identifier or type and taps it, in a single call. This is the fastest way to press a button or focus a field: no coordinates needed. Waits briefly for the element to appear, so it can follow a screen transition. Requires idb.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `label` | `string` | No | Visible text of the element (label or value), case-insensitive. Exact matches win over partial ones. |
+| `identifier` | `string` | No | Exact accessibilityIdentifier of the element. |
+| `type` | `string` | No | Accessibility type to restrict the match to, e.g. "Button". |
+| `index` | `integer (>= 0)` | No | Which match to use (0 = first) when several elements qualify. |
+| `durationSeconds` | `number (<= 30)` | No | How long to hold the touch, for a long press. |
+| `timeoutSeconds` | `number (>= 0, <= 60)` | No | How long to wait for the element to appear (default: 3). |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
+| `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
+
+### ui_wait_for_element
+
+**Wait for element** · Lectura
+
+Waits until an element is on screen, e.g. after launching an app or submitting a form, and returns it. Use it instead of polling with ui_describe_screen. Requires idb.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `label` | `string` | No | Visible text of the element (label or value), case-insensitive. Exact matches win over partial ones. |
+| `identifier` | `string` | No | Exact accessibilityIdentifier of the element. |
+| `type` | `string` | No | Accessibility type to restrict the match to, e.g. "Button". |
+| `index` | `integer (>= 0)` | No | Which match to use (0 = first) when several elements qualify. |
+| `timeoutSeconds` | `number (>= 0, <= 60)` | No | How long to wait (default: 10). |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
+| `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
+
+### ui_sequence
+
+**Run a sequence of UI steps** · Modifica
+
+Runs several UI steps in one call, which is much faster than one call per step. Use it for any flow you can plan ahead, such as filling a form. Stops at the first failing step and reports which steps completed, the error and the current screen. Requires idb.  
+Each step is an object with an "action":  
+- tap: x, y, durationSeconds?  
+- tap_element: label?, identifier?, type?, index?, durationSeconds?, timeoutSeconds?  
+- type_text: text  
+- swipe: fromX, fromY, toX, toY, durationSeconds?  
+- press_button: button (HOME, LOCK, SIDE_BUTTON, SIRI, APPLE_PAY)  
+- press_key: keyCode  
+- wait: seconds  
+- wait_for_element: label?, identifier?, type?, index?, timeoutSeconds?  
+Example: [{"action":"tap_element","label":"Email"},{"action":"type_text","text":"a@b.co"},{"action":"tap_element","label":"Sign in"},{"action":"wait_for_element","label":"Welcome"}]
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `steps` | `object[]` | Sí | Steps to run, in order. |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
+| `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
+
 ### ui_tap
 
 **Tap** · Modifica
 
-Taps a screen coordinate given in points (not screenshot pixels). Get coordinates from the "tapPoint" of ui_describe_screen. Set a duration to long-press. Requires idb.
+Taps a screen coordinate in points. Prefer ui_tap_element when the target has a label or identifier. Coordinates come from ui_describe_screen or from a screenshot taken at the default "points" resolution. Set a duration to long-press. Requires idb.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `x` | `number (>= 0)` | Sí | Horizontal position, in points. |
 | `y` | `number (>= 0)` | Sí | Vertical position, in points. |
 | `durationSeconds` | `number (<= 30)` | No | How long to hold the touch, for a long press. |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### ui_swipe
 
 **Swipe** · Modifica
 
-Drags a finger between two coordinates in points. To scroll content down, swipe from a lower point to a higher one (larger y to smaller y). Requires idb.
+Drags a finger between two coordinates in points. To scroll content down, swipe from a lower point to a higher one (larger y to smaller y). Limitation: swipes that start at a screen edge do not trigger system gestures such as Notification Center, Control Center or the app switcher. Requires idb.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
@@ -201,17 +257,19 @@ Drags a finger between two coordinates in points. To scroll content down, swipe 
 | `toY` | `number (>= 0)` | Sí | Ending vertical position, in points. |
 | `durationSeconds` | `number (<= 30)` | No | Duration of the gesture. |
 | `stepSize` | `number` | No | Distance in points between intermediate touch events. |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### ui_type_text
 
 **Type text** · Modifica
 
-Types text into the focused field, as if using the keyboard. Tap a text field first to give it focus. Requires idb.
+Types text into the focused field, as if using the keyboard; line breaks press Return. Tap a text field first to give it focus. Limitation: only unaccented Latin letters, digits and common punctuation can be typed. For accents, ñ, emoji or any other script, use set_clipboard, long-press the field and tap "Paste". Requires idb.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
-| `text` | `string` | Sí | Text to type. |
+| `text` | `string` | Sí | Text to type (printable ASCII, line breaks and tabs). |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### ui_press_button
@@ -223,6 +281,7 @@ Presses a hardware button, e.g. HOME to return to the home screen. Requires idb.
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `button` | `"HOME" \| "LOCK" \| "SIDE_BUTTON" \| "SIRI" \| "APPLE_PAY"` | Sí | Button to press. |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ### ui_press_key
@@ -234,6 +293,7 @@ Presses a keyboard key by its USB HID usage code. Common codes: 40 Return, 41 Es
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `keyCode` | `integer (>= 0, <= 255)` | Sí | USB HID keyboard usage code. |
+| `describeAfter` | `boolean` | No | Also return the elements on screen after the action, saving a ui_describe_screen call. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ## Multimedia
@@ -242,11 +302,12 @@ Presses a keyboard key by its USB HID usage code. Common codes: 40 Return, 41 Es
 
 **Take screenshot** · Lectura
 
-Captures the simulator screen and returns the image. Note: the image is in pixels, while ui_tap and ui_swipe use points (pixels divided by the device scale, usually 3 on iPhone and 2 on iPad). Use ui_describe_screen to get exact element positions in points.
+Captures the simulator screen and returns the image. By default the image is scaled to one pixel per point, so positions in it are the coordinates ui_tap and ui_swipe expect. Use it to check how things look; to find or tap elements, ui_describe_screen and ui_tap_element are faster. A screen that is black right after launching an app is still loading.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `format` | `"png" \| "jpeg"` | No | Image format (default: jpeg, which is smaller). |
+| `resolution` | `"points" \| "full"` | No | "points" (default): small image whose coordinates match the UI tools. "full": native device pixels. |
 | `outputPath` | `string` | No | Also save the image to this path on the Mac. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
@@ -280,7 +341,7 @@ Adds photos or videos from the Mac to the simulator's Photos library.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
-| `paths` | `string[]` | Sí | Paths of the image or video files on the Mac. |
+| `paths` | `string[]` | Sí | Paths of existing image or video files on the Mac. |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ## Entorno
@@ -346,12 +407,33 @@ Grants, revokes or resets a privacy permission (photos, location, contacts, micr
 
 **Send push notification** · Modifica
 
-Delivers a simulated remote push notification to an app. The payload is a standard APNs payload, e.g. {"aps": {"alert": {"title": "Hi", "body": "Hello"}, "badge": 1}}.
+Delivers a simulated remote push notification to an app. The payload is a standard APNs payload, e.g. {"aps": {"alert": {"title": "Hi", "body": "Hello"}, "badge": 1}}. The app must already have asked for, and been granted, permission to show notifications.
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `bundleId` | `string` | Sí | Bundle identifier of the app, e.g. com.apple.mobilesafari. |
 | `payload` | `object` | Sí | APNs payload; custom keys are allowed next to "aps". |
+| `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
+
+### set_clipboard
+
+**Set clipboard text** · Modifica
+
+Puts text on the simulator clipboard. This is the way to enter text ui_type_text cannot type (accents, ñ, emoji, non-Latin scripts): set the clipboard, long-press the text field and tap the "Paste" item of the menu that appears.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `text` | `string` | Sí | Text to copy. Any Unicode text is accepted. |
+| `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
+
+### get_clipboard
+
+**Get clipboard text** · Lectura
+
+Returns the text currently on the simulator clipboard.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
 | `device` | `string` | No | Target simulator: UDID or exact name. Omit to use the only booted simulator. |
 
 ## Logs

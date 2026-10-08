@@ -1,4 +1,4 @@
-import { ExecutableNotFoundError, UnexpectedOutputError } from '../../domain/errors.js';
+import { CommandFailedError, ExecutableNotFoundError, UnexpectedOutputError } from '../../domain/errors.js';
 import { Rect, type Point } from '../../domain/geometry.js';
 import type { UiAutomationGateway } from '../../domain/ports/UiAutomationGateway.js';
 import type { HardwareButton, SwipeOptions, UiElement } from '../../domain/ui.js';
@@ -95,9 +95,35 @@ export class IdbUiAutomationGateway implements UiAutomationGateway {
       if (error instanceof ExecutableNotFoundError) {
         throw new ExecutableNotFoundError(this.idbPath, IDB_HINT);
       }
+      if (error instanceof CommandFailedError) {
+        throw explain(error.withOutput(summariseIdbError(error.stderr)));
+      }
       throw error;
     }
   }
+}
+
+/**
+ * idb is a Python program and reports failures as full tracebacks. Only the
+ * final line, the exception message, means anything to a client.
+ */
+export function summariseIdbError(stderr: string): string {
+  if (!stderr.includes('Traceback (most recent call last)')) {
+    return stderr.trim();
+  }
+  const lines = stderr.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  return lines.at(-1)?.trim() ?? stderr.trim();
+}
+
+/** Adds advice to the idb failures whose cause is known. */
+function explain(error: CommandFailedError): CommandFailedError {
+  if (/No translation object returned/i.test(error.stderr)) {
+    return error.withHint(
+      'idb reads the screen through the Simulator app, so its window must be open. ' +
+        'Call open_simulator_app, wait a few seconds and retry.',
+    );
+  }
+  return error;
 }
 
 /** Maps an idb accessibility node to the domain model. */

@@ -32,7 +32,8 @@ export class DeviceTools implements ToolProvider {
         name: 'boot_device',
         title: 'Boot simulator',
         description:
-          'Boots a simulator and waits until it is ready to use. Does nothing if it is already running.',
+          'Boots a simulator and waits until it is ready to use. Does nothing if it is already running. ' +
+          'If the Simulator window cannot be opened the boot still succeeds and a warning is returned.',
         inputSchema: {
           device: requiredDeviceParam,
           showWindow: z
@@ -43,11 +44,10 @@ export class DeviceTools implements ToolProvider {
         annotations: { ...Hints.mutating, idempotentHint: true },
         execute: async ({ device, showWindow }) => {
           const result = await this.devices.boot(device, showWindow ?? true);
-          return text(
-            result.alreadyBooted
-              ? `${result.device.label} was already booted.`
-              : `Booted ${result.device.label}.`,
-          );
+          const outcome = result.alreadyBooted
+            ? `${result.device.label} was already booted.`
+            : `Booted ${result.device.label}.`;
+          return text(result.warning ? `${outcome}\nWarning: ${result.warning}` : outcome);
         },
       }),
 

@@ -5,9 +5,10 @@ import type {
   PermissionChange,
   StatusBarOverrides,
 } from '../domain/environment.js';
-import { InvalidArgumentError } from '../domain/errors.js';
+import { CommandFailedError, InvalidArgumentError } from '../domain/errors.js';
 import type { EnvironmentGateway } from '../domain/ports/EnvironmentGateway.js';
 import type { DeviceResolver } from './DeviceResolver.js';
+import type { OnDevice } from './OnDevice.js';
 
 /** Use cases to shape the simulated environment of a booted device. */
 export class EnvironmentService {
@@ -72,7 +73,28 @@ export class EnvironmentService {
       throw new InvalidArgumentError('A push payload must contain an "aps" object.');
     }
     const device = await this.resolver.resolveBooted(reference);
-    await this.environment.sendPushNotification(device.udid, bundleId, payload);
+    try {
+      await this.environment.sendPushNotification(device.udid, bundleId, payload);
+    } catch (error) {
+      if (error instanceof CommandFailedError && /not authorized/i.test(error.stderr)) {
+        throw error.withHint(
+          `${bundleId} is not allowed to show notifications. The app must first request notification ` +
+            'permission and the request must be accepted: launch it, trigger its permission prompt and tap "Allow".',
+        );
+      }
+      throw error;
+    }
     return device;
+  }
+
+  async setClipboard(text: string, reference?: string): Promise<Device> {
+    const device = await this.resolver.resolveBooted(reference);
+    await this.environment.setClipboard(device.udid, text);
+    return device;
+  }
+
+  async getClipboard(reference?: string): Promise<OnDevice<string>> {
+    const device = await this.resolver.resolveBooted(reference);
+    return { device, value: await this.environment.getClipboard(device.udid) };
   }
 }

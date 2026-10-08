@@ -21,14 +21,22 @@ export function image(data: Uint8Array, mimeType: string, caption?: string): Too
   };
 }
 
+/** A failed operation whose explanation is already written. */
+export function failure(message: string): ToolResponse {
+  return { isError: true, content: [{ type: 'text', text: message }] };
+}
+
 /**
- * Presents a failure as a tool error the model can read and act upon.
+ * Renders a failure as `[CODE] message`.
  * Domain errors are shown with their code; anything else is unexpected.
  */
+export function formatError(error: unknown): string {
+  return error instanceof SimulatorError
+    ? `[${error.code}] ${error.message}`
+    : `[UNEXPECTED_ERROR] ${error instanceof Error ? error.message : String(error)}`;
+}
+
+/** Presents a failure as a tool error the model can read and act upon. */
 export function errorResponse(error: unknown): ToolResponse {
-  const message =
-    error instanceof SimulatorError
-      ? `[${error.code}] ${error.message}`
-      : `[UNEXPECTED_ERROR] ${error instanceof Error ? error.message : String(error)}`;
-  return { isError: true, content: [{ type: 'text', text: message }] };
+  return failure(formatError(error));
 }

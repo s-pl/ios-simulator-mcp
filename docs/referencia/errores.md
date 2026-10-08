@@ -7,7 +7,7 @@ Los fallos se devuelven como resultado de error de la herramienta, con el format
 | --- | --- |
 | `UNSUPPORTED_PLATFORM` | El servidor no se está ejecutando en macOS. |
 | `EXECUTABLE_NOT_FOUND` | Falta `xcrun` o `idb`. El mensaje incluye cómo instalarlo. |
-| `COMMAND_FAILED` | Un comando terminó con error. Incluye el comando exacto y su salida. |
+| `COMMAND_FAILED` | Un comando terminó con error. Incluye el comando exacto, su salida y, cuando la causa es conocida, una línea `Hint:` con la solución. |
 | `COMMAND_TIMEOUT` | Un comando superó su tiempo máximo. |
 | `UNEXPECTED_OUTPUT` | La salida de una herramienta externa no tiene el formato esperado. |
 | `DEVICE_NOT_FOUND` | Ningún simulador disponible coincide con el nombre o UDID. |
@@ -17,6 +17,11 @@ Los fallos se devuelven como resultado de error de la herramienta, con el format
 | `DEVICE_NOT_SHUTDOWN` | La operación necesita el simulador apagado. |
 | `RECORDING_ALREADY_ACTIVE` | Ya hay una grabación en curso en ese dispositivo. |
 | `NO_ACTIVE_RECORDING` | No hay ninguna grabación que detener. |
+| `ELEMENT_NOT_FOUND` | Ningún elemento en pantalla coincide con la búsqueda. El mensaje lista los que hay. |
+| `AMBIGUOUS_ELEMENT` | Varios elementos coinciden. El mensaje los lista numerados para elegir con `index`. |
+| `UNSUPPORTED_TEXT` | El texto contiene caracteres que el teclado simulado no puede escribir. Consulta [Limitaciones](../guia/limitaciones). |
+| `APP_NOT_INSTALLED` | La app indicada no está instalada en el simulador. |
+| `PATH_NOT_FOUND` | Un archivo o carpeta indicado no existe en el Mac. |
 | `INVALID_ARGUMENT` | Un valor es válido sintácticamente pero no aceptable. |
 | `UNEXPECTED_ERROR` | Fallo no previsto. Conviene informar de él. |
 

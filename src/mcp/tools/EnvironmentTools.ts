@@ -119,7 +119,8 @@ export class EnvironmentTools implements ToolProvider {
         title: 'Send push notification',
         description:
           'Delivers a simulated remote push notification to an app. The payload is a standard APNs ' +
-          'payload, e.g. {"aps": {"alert": {"title": "Hi", "body": "Hello"}, "badge": 1}}.',
+          'payload, e.g. {"aps": {"alert": {"title": "Hi", "body": "Hello"}, "badge": 1}}. ' +
+          'The app must already have asked for, and been granted, permission to show notifications.',
         inputSchema: {
           bundleId: bundleIdParam,
           payload: z
@@ -132,6 +133,36 @@ export class EnvironmentTools implements ToolProvider {
         execute: async ({ bundleId, payload, device }) => {
           const target = await this.environment.sendPushNotification(bundleId, payload, device);
           return text(`Push notification sent to ${bundleId} on ${target.label}.`);
+        },
+      }),
+
+      defineTool({
+        name: 'set_clipboard',
+        title: 'Set clipboard text',
+        description:
+          'Puts text on the simulator clipboard. This is the way to enter text ui_type_text cannot ' +
+          'type (accents, \u00f1, emoji, non-Latin scripts): set the clipboard, long-press the text field ' +
+          'and tap the "Paste" item of the menu that appears.',
+        inputSchema: {
+          text: z.string().describe('Text to copy. Any Unicode text is accepted.'),
+          device: deviceParam,
+        },
+        annotations: { ...Hints.mutating, idempotentHint: true },
+        execute: async ({ text: content, device }) => {
+          const target = await this.environment.setClipboard(content, device);
+          return text(`Copied ${[...content].length} character(s) to the clipboard of ${target.label}.`);
+        },
+      }),
+
+      defineTool({
+        name: 'get_clipboard',
+        title: 'Get clipboard text',
+        description: 'Returns the text currently on the simulator clipboard.',
+        inputSchema: { device: deviceParam },
+        annotations: Hints.readOnly,
+        execute: async ({ device }) => {
+          const { value } = await this.environment.getClipboard(device);
+          return text(value.length > 0 ? value : '(the clipboard is empty)');
         },
       }),
     ];

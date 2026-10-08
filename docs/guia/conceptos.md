@@ -17,14 +17,41 @@ ignoran.
 Las operaciones en las que adivinar sería peligroso, `boot_device` y `erase_device`, exigen
 `device`.
 
+## Localizar elementos
+
+`ui_tap_element`, `ui_wait_for_element` y los pasos equivalentes de `ui_sequence` designan un
+elemento con uno o varios de estos criterios, que se combinan con «y»:
+
+| Criterio | Coincidencia |
+| --- | --- |
+| `label` | Texto visible del elemento: su etiqueta de accesibilidad o su valor. No distingue mayúsculas. |
+| `identifier` | `accessibilityIdentifier` exacto. Es la opción más estable si la app los define. |
+| `type` | Tipo de accesibilidad, por ejemplo `Button` o `TextField`. |
+| `index` | Qué coincidencia usar, empezando en 0, cuando hay varias. |
+
+Reglas de `label`:
+
+- Una coincidencia exacta tiene prioridad sobre una parcial. `"Entrar"` elige el botón «Entrar»
+  aunque exista «Entrar con Apple».
+- Si no hay ninguna exacta, se aceptan los elementos cuyo texto contiene el indicado.
+- Un contenedor y la etiqueta que lleva dentro, con el mismo texto, cuentan como un solo destino.
+
+Si varios elementos distintos coinciden y no se indica `index`, la llamada falla con
+`[AMBIGUOUS_ELEMENT]` y lista los candidatos numerados. Si no coincide ninguno tras la espera,
+falla con `[ELEMENT_NOT_FOUND]` y lista lo que hay en pantalla.
+
 ## Puntos, no píxeles
 
-Las herramientas `ui_*` trabajan en **puntos**, el espacio de coordenadas de UIKit. Una captura de
-pantalla está en **píxeles**: puntos multiplicados por la escala del dispositivo, normalmente 3 en
+Las herramientas `ui_*` trabajan en **puntos**, el espacio de coordenadas de UIKit. La pantalla
+física tiene más **píxeles**: puntos multiplicados por la escala del dispositivo, normalmente 3 en
 iPhone y 2 en iPad.
 
-Para tocar un elemento, usa el `tapPoint` que devuelve `ui_describe_screen` en lugar de estimar
-coordenadas sobre la imagen.
+`screenshot` devuelve por defecto la imagen reducida a un píxel por punto, así que las posiciones
+de la imagen son directamente coordenadas válidas para `ui_tap`. Con `resolution: "full"` la
+imagen está en píxeles y hay que dividir por la escala; el texto que acompaña a la captura indica
+siempre en qué unidad está.
+
+Cuando el destino tiene texto o identificador, `ui_tap_element` evita trabajar con coordenadas.
 
 ## Operaciones que requieren un estado concreto
 
@@ -35,6 +62,16 @@ coordenadas sobre la imagen.
 
 `erase_device` nunca apaga el simulador por su cuenta: borrar es irreversible y debe ser un paso
 explícito.
+
+## Comprobaciones previas
+
+El servidor valida lo que puede antes de ejecutar nada, para devolver un mensaje claro en lugar
+del error interno de la herramienta subyacente:
+
+- `install_app` y `add_media` comprueban que las rutas existen.
+- `open_url` comprueba que el texto es una URL con esquema.
+- `uninstall_app` comprueba que la app está instalada.
+- `ui_type_text` comprueba que todo el texto se puede teclear.
 
 ## Indicadores de comportamiento
 

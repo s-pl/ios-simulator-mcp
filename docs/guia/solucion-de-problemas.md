@@ -12,13 +12,40 @@ No hay ningún simulador arrancado. Usa `list_devices` y después `boot_device`,
 
 ## `ui_describe_screen` falla con «No translation object returned»
 
-idb no puede leer la accesibilidad del simulador. Suele ocurrir cuando el simulador se ha
-arrancado sin ventana. Abre la aplicación Simulator con `open_simulator_app` y vuelve a intentarlo.
+idb no puede leer la accesibilidad del simulador. Ocurre cuando el simulador se ha arrancado sin
+ventana. Abre la aplicación Simulator con `open_simulator_app`, espera unos segundos y vuelve a
+intentarlo.
+
+## `boot_device` responde con un aviso sobre la ventana
+
+El simulador ha arrancado, pero no se pudo abrir la ventana de Simulator. Todo funciona salvo las
+herramientas de interfaz. Ejecuta `open_simulator_app` o abre Simulator a mano.
+
+## `ui_type_text` responde `UNSUPPORTED_TEXT`
+
+El texto contiene tildes, ñ, emojis u otros caracteres que el teclado simulado no puede escribir.
+Usa el portapapeles, como se explica en [Limitaciones conocidas](./limitaciones).
+
+## La captura sale en negro
+
+La app todavía está cargando. Espera con `ui_wait_for_element` a un elemento de la pantalla antes
+de capturar.
+
+## Un deslizamiento no abre el Centro de notificaciones
+
+Los gestos que empiezan en un borde de la pantalla no activan los gestos del sistema. Consulta
+[Limitaciones conocidas](./limitaciones#gestos-desde-los-bordes-de-la-pantalla).
+
+## Una push falla con «Source is not authorized»
+
+La app no tiene permiso para mostrar notificaciones. Debe pedirlo y hay que aceptarlo en pantalla
+antes de enviarle una push.
 
 ## Los toques caen en el sitio equivocado
 
-Probablemente se están usando píxeles de la captura. Usa el `tapPoint` de `ui_describe_screen`,
-que ya está en puntos. Consulta [Puntos, no píxeles](./conceptos#puntos-no-pixeles).
+Probablemente se están usando coordenadas de una captura tomada con `resolution: "full"`, que
+está en píxeles. Usa `ui_tap_element`, las coordenadas de `ui_describe_screen` o una captura a la
+resolución por defecto. Consulta [Puntos, no píxeles](./conceptos#puntos-no-pixeles).
 
 ## `xcrun: error: unable to find utility "simctl"`
 

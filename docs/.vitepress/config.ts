@@ -26,6 +26,8 @@ export default defineConfig({
           { text: 'Configuración', link: '/guia/configuracion' },
           { text: 'Primeros pasos', link: '/guia/primeros-pasos' },
           { text: 'Conceptos clave', link: '/guia/conceptos' },
+          { text: 'Trabajar rápido', link: '/guia/rendimiento' },
+          { text: 'Limitaciones conocidas', link: '/guia/limitaciones' },
           { text: 'Solución de problemas', link: '/guia/solucion-de-problemas' },
         ],
       },

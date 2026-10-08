@@ -17,11 +17,14 @@ const GROUPS = [
   { title: 'Apps', tools: ['install_app', 'uninstall_app', 'launch_app', 'terminate_app', 'list_apps', 'open_url', 'get_app_container'] },
   {
     title: 'Interfaz',
-    note: 'Estas herramientas requieren [idb](../guia/instalacion#instalar-idb). Las coordenadas se expresan en [puntos](../guia/conceptos#puntos-no-pixeles).',
-    tools: ['ui_describe_screen', 'ui_describe_point', 'ui_tap', 'ui_swipe', 'ui_type_text', 'ui_press_button', 'ui_press_key'],
+    note: 'Estas herramientas requieren [idb](../guia/instalacion#instalar-idb). Las coordenadas se expresan en [puntos](../guia/conceptos#puntos-no-pixeles). Consulta [Trabajar rápido](../guia/rendimiento) para elegir la más eficiente.',
+    tools: [
+      'ui_describe_screen', 'ui_describe_point', 'ui_tap_element', 'ui_wait_for_element', 'ui_sequence',
+      'ui_tap', 'ui_swipe', 'ui_type_text', 'ui_press_button', 'ui_press_key',
+    ],
   },
   { title: 'Multimedia', tools: ['screenshot', 'start_recording', 'stop_recording', 'add_media'] },
-  { title: 'Entorno', tools: ['set_appearance', 'set_location', 'set_status_bar', 'set_permission', 'send_push_notification'] },
+  { title: 'Entorno', tools: ['set_appearance', 'set_location', 'set_status_bar', 'set_permission', 'send_push_notification', 'set_clipboard', 'get_clipboard'] },
   { title: 'Logs', tools: ['get_logs'] },
 ];
 
@@ -95,7 +98,8 @@ function renderTool(tool) {
     '',
     `**${escapeText(tool.title ?? tool.name)}** · ${behaviour(tool.annotations ?? {})}`,
     '',
-    escapeText(tool.description ?? ''),
+    // Two trailing spaces keep the line breaks of multi-line descriptions in Markdown.
+    escapeText(tool.description ?? '').replaceAll('\n', '  \n'),
     '',
     ...(rows.length > 0
       ? ['| Parámetro | Tipo | Obligatorio | Descripción |', '| --- | --- | --- | --- |', ...rows]
@@ -121,7 +125,7 @@ function describeType(schema) {
     schema.minimum !== undefined ? `>= ${schema.minimum}` : '',
     schema.maximum !== undefined ? `<= ${schema.maximum}` : '',
   ].filter(Boolean);
-  const base = schema.type ?? 'any';
+  const base = schema.type ?? (schema.anyOf ? 'object' : 'any');
   return range.length > 0 ? `${base} (${range.join(', ')})` : base;
 }
 
