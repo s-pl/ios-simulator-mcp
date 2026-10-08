@@ -16,7 +16,7 @@ notificaciones push, y leer logs.
 | --- | --- | --- |
 | macOS + Xcode | Todo (`xcrun simctl`) | App Store + `xcode-select --install` |
 | Node.js ≥ 20 | Ejecutar el servidor | `brew install node` |
-| [idb](https://fbidb.io) *(opcional)* | Solo las herramientas `ui_*` | `brew tap facebook/fb && brew install idb-companion` y `pipx install fb-idb` |
+| [idb](https://fbidb.io) *(opcional)* | Solo las herramientas `ui_*` | `brew tap facebook/fb && brew install idb-companion` y `pipx install fb-idb` (si Homebrew rechaza el tap, antes `brew trust facebook/fb`) |
 
 > El simulador solo existe en macOS. En otros sistemas el servidor arranca y lista sus
 > herramientas, pero cada llamada responde `[UNSUPPORTED_PLATFORM]`.

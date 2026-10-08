@@ -108,6 +108,7 @@ npm install</code></pre>
         <p><code>simctl</code> no puede inyectar toques ni leer la pantalla, así que las herramientas
           <code>ui_*</code> usan <a href="https://fbidb.io">idb</a> de Meta. El resto del servidor funciona sin él.</p>
 <pre><code>brew tap facebook/fb
+brew trust facebook/fb      # solo si Homebrew rechaza el tap por no ser de confianza
 brew install idb-companion
 pipx install fb-idb</code></pre>
         <p>Si el cliente MCP no encuentra <code>idb</code> (las apps de escritorio no heredan el
