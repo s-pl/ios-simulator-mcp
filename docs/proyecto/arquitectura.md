@@ -19,7 +19,7 @@ infrastructure/   Adaptadores: simctl, idb, SimulatorHost, CommandRunner
 | --- | --- | --- |
 | `src/domain/` | Modelo y contratos, sin dependencias externas. | `Device`, `Runtime`, `Point`, `SimulatorError`, `ports/*Gateway` |
 | `src/application/` | Reglas de negocio y orquestación. | `DeviceCatalog`, `DeviceResolver`, `DeviceService`, `AppService`, `UiService`, `MediaService`, `EnvironmentService`, `LogService` |
-| `src/infrastructure/` | Comunicación con el sistema. | `NodeCommandRunner`, `SimulatorHost`, `Simctl*Gateway`, `IdbUiAutomationGateway` |
+| `src/infrastructure/` | Comunicación con el sistema. | `NodeCommandRunner`, `SimulatorHost`, `Simctl*Gateway`, `CompanionUiAutomationGateway`, `IdbUiAutomationGateway` |
 | `src/mcp/` | Exponer los casos de uso como herramientas MCP. | `ToolDefinition`, `*Tools`, `presenters`, `SimulatorMcpServer` |
 | `src/container.ts` | Único lugar que conecta las capas. | `createContainer()` |
 
@@ -36,7 +36,8 @@ src/
 │   ├── process/      CommandRunner (interfaz) y NodeCommandRunner
 │   ├── host/         SimulatorHost
 │   ├── simctl/       Gateways sobre xcrun simctl
-│   └── idb/          Gateway de automatización de interfaz
+│   ├── companion/    Automatización de interfaz por gRPC con idb_companion
+│   └── idb/          La misma automatización con el cliente de línea de comandos
 ├── mcp/
 │   ├── ToolDefinition.ts, responses.ts, presenters.ts, schemas.ts
 │   ├── SimulatorMcpServer.ts
@@ -66,6 +67,18 @@ de comandos. Ningún valor enviado por el modelo puede inyectar comandos.
 Cada capacidad tiene su interfaz en `domain/ports/`: `DeviceGateway`, `AppGateway`,
 `MediaGateway`, `UiAutomationGateway`, `EnvironmentGateway` y `LogGateway`. `idb` es un adaptador
 más de `UiAutomationGateway` y puede sustituirse sin tocar la aplicación ni la capa MCP.
+
+### Dos adaptadores para el mismo puerto
+
+`UiAutomationGateway` tiene dos implementaciones. `CompanionUiAutomationGateway` habla por gRPC
+con `idb_companion` a través de una conexión que `CompanionPool` mantiene abierta por simulador.
+`IdbUiAutomationGateway` ejecuta el cliente de línea de comandos en cada llamada.
+`FallbackUiAutomationGateway` usa el primero y cambia al segundo, de forma definitiva, solo si el
+primero no está disponible; un fallo normal de una operación nunca provoca el cambio.
+
+Los pocos mensajes del protocolo que hacen falta se codifican a mano. Los tests los decodifican
+con la definición oficial de `idb` en un servidor gRPC real, que es lo que demuestra que la
+codificación es correcta.
 
 ### Herramientas declarativas
 

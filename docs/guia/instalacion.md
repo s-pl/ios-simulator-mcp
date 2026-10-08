@@ -65,6 +65,9 @@ pipx install fb-idb
 Si Homebrew rechaza la fórmula por venir de un tap que no es de confianza, ejecuta antes
 `brew trust facebook/fb`.
 
+El servidor habla directamente con `idb_companion`, así que el cliente de Python (`fb-idb`) es
+opcional: solo se usa como alternativa si la conexión directa no puede establecerse.
+
 ::: tip El cliente no encuentra idb
 Las aplicaciones de escritorio no heredan el `PATH` de tu terminal. Si las herramientas `ui_*`
 responden `[EXECUTABLE_NOT_FOUND]`, indica la ruta completa con la variable

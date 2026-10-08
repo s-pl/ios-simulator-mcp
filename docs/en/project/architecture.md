@@ -19,7 +19,7 @@ infrastructure/   Adapters: simctl, idb, SimulatorHost, CommandRunner
 | --- | --- | --- |
 | `src/domain/` | Model and contracts, with no external dependencies. | `Device`, `Runtime`, `Point`, `ElementQuery`, `UiStep`, `SimulatorError`, `ports/*Gateway` |
 | `src/application/` | Business rules and orchestration. | `DeviceCatalog`, `DeviceResolver`, `DeviceService`, `AppService`, `UiService`, `MediaService`, `EnvironmentService`, `LogService` |
-| `src/infrastructure/` | Talking to the system. | `NodeCommandRunner`, `SimulatorHost`, `Simctl*Gateway`, `IdbUiAutomationGateway` |
+| `src/infrastructure/` | Talking to the system. | `NodeCommandRunner`, `SimulatorHost`, `Simctl*Gateway`, `CompanionUiAutomationGateway`, `IdbUiAutomationGateway` |
 | `src/mcp/` | Exposing the use cases as MCP tools. | `ToolDefinition`, `*Tools`, `presenters`, `SimulatorMcpServer` |
 | `src/container.ts` | The only place that wires the layers together. | `createContainer()` |
 
@@ -36,7 +36,8 @@ src/
 │   ├── process/      CommandRunner (interface) and NodeCommandRunner
 │   ├── host/         SimulatorHost
 │   ├── simctl/       Gateways on top of xcrun simctl
-│   └── idb/          UI automation gateway
+│   ├── companion/    UI automation over gRPC with idb_companion
+│   └── idb/          The same automation through the command line client
 ├── mcp/
 │   ├── ToolDefinition.ts, responses.ts, presenters.ts, schemas.ts
 │   ├── SimulatorMcpServer.ts
@@ -67,6 +68,17 @@ Every capability has its interface in `domain/ports/`: `DeviceGateway`, `AppGate
 `MediaGateway`, `UiAutomationGateway`, `EnvironmentGateway` and `LogGateway`. `idb` is just one
 adapter of `UiAutomationGateway` and can be replaced without touching the application or the MCP
 layer.
+
+### Two adapters for the same port
+
+`UiAutomationGateway` has two implementations. `CompanionUiAutomationGateway` talks gRPC to
+`idb_companion` over a connection that `CompanionPool` keeps open per simulator.
+`IdbUiAutomationGateway` runs the command line client on every call.
+`FallbackUiAutomationGateway` uses the former and switches to the latter, for good, only when the
+former is not available; an ordinary failure of an operation never triggers the switch.
+
+The few protocol messages needed are encoded by hand. The tests decode them with the official
+`idb` definition on a real gRPC server, which is what proves the encoding is right.
 
 ### Declarative tools
 

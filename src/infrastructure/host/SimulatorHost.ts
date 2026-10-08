@@ -1,4 +1,4 @@
-import { ExecutableNotFoundError, UnsupportedPlatformError } from '../../domain/errors.js';
+import { CommandFailedError, ExecutableNotFoundError, UnsupportedPlatformError } from '../../domain/errors.js';
 import type { BackgroundProcess, CommandResult, CommandRunner, RunOptions } from '../process/CommandRunner.js';
 
 export interface SimulatorHostOptions {
@@ -10,6 +10,8 @@ export interface SimulatorHostOptions {
 
 /** Generous on purpose: simctl can stall for a long time while a simulator is still settling after boot. */
 const DEFAULT_TIMEOUT_MS = 120_000;
+/** Attempts given to a repeatable command before a transient timeout is reported. */
+const TRANSIENT_ATTEMPTS = 3;
 const XCODE_HINT = 'Install Xcode and its command line tools (xcode-select --install).';
 
 /**
@@ -40,6 +42,25 @@ export class SimulatorHost {
         throw new ExecutableNotFoundError(this.xcrunPath, XCODE_HINT);
       }
       throw error;
+    }
+  }
+
+  /**
+   * Runs a `simctl` command that is safe to repeat, retrying when CoreSimulator
+   * answers "Operation timed out". That answer is intermittent, typically seen
+   * right after another operation restarted a system service, and the same
+   * command succeeds when run again.
+   */
+  async simctlRepeatable(args: readonly string[], options: RunOptions = {}): Promise<CommandResult> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.simctl(args, options);
+      } catch (error) {
+        const transient = error instanceof CommandFailedError && /operation timed out/i.test(error.stderr);
+        if (!transient || attempt >= TRANSIENT_ATTEMPTS) {
+          throw error;
+        }
+      }
     }
   }
 

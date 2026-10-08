@@ -1,5 +1,23 @@
 # Cambios
 
+## 1.3.0
+
+### Nuevo
+
+- Conexión directa y persistente con `idb_companion` por gRPC para todas las acciones de interfaz,
+  en lugar de arrancar el cliente de Python de `idb` en cada llamada. Medido en un simulador real:
+  un toque pasa de unos 0,62 s a entre 0,01 y 0,19 s, y leer la pantalla de 0,79 s a 0,17 s.
+- Variable `IOS_SIMULATOR_MCP_UI_BACKEND` (`auto`, `companion`, `cli`). Por defecto `auto`: usa la
+  conexión directa y recurre al cliente de línea de comandos si no puede arrancarla.
+- Variable `IOS_SIMULATOR_MCP_IDB_COMPANION_PATH`.
+
+### Cambios
+
+- El cliente de Python `fb-idb` pasa a ser opcional; basta con `idb-companion`.
+- Los comandos de `simctl` que se pueden repetir sin efectos secundarios se reintentan cuando
+  CoreSimulator responde «Operation timed out» (abrir una URL, portapapeles, apariencia,
+  ubicación, barra de estado, permisos, listar apps).
+
 ## 1.2.0
 
 ### Nuevo

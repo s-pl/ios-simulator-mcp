@@ -65,6 +65,9 @@ pipx install fb-idb
 If Homebrew refuses the formula because it comes from an untrusted tap, run
 `brew trust facebook/fb` first.
 
+The server talks to `idb_companion` directly, so the Python client (`fb-idb`) is optional: it is
+only used as a fallback when the direct connection cannot be established.
+
 ::: tip The client cannot find idb
 Desktop applications do not inherit your terminal's `PATH`. If the `ui_*` tools answer
 `[EXECUTABLE_NOT_FOUND]`, give the full path through the `IOS_SIMULATOR_MCP_IDB_PATH` variable.

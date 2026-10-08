@@ -61,7 +61,7 @@ export class SimctlAppGateway implements AppGateway {
 
   async listInstalled(udid: string): Promise<InstalledApp[]> {
     // `listapps` prints an old-style property list; plutil turns it into JSON.
-    const plist = await this.host.simctl(['listapps', udid]);
+    const plist = await this.host.simctlRepeatable(['listapps', udid]);
     const { stdout } = await this.host.run('plutil', ['-convert', 'json', '-o', '-', '-'], {
       stdin: plist.stdout,
     });
@@ -69,11 +69,11 @@ export class SimctlAppGateway implements AppGateway {
   }
 
   async openUrl(udid: string, url: string): Promise<void> {
-    await this.host.simctl(['openurl', udid, url]);
+    await this.host.simctlRepeatable(['openurl', udid, url]);
   }
 
   async getContainerPath(udid: string, bundleId: string, kind: AppContainerKind): Promise<string> {
-    const { stdout } = await this.host.simctl(['get_app_container', udid, bundleId, kind]);
+    const { stdout } = await this.host.simctlRepeatable(['get_app_container', udid, bundleId, kind]);
     return stdout.trim();
   }
 }

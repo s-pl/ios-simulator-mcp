@@ -7,8 +7,10 @@ variables.
 | --- | --- | --- |
 | `IOS_SIMULATOR_MCP_XCRUN_PATH` | `xcrun` | The `xcrun` executable. |
 | `IOS_SIMULATOR_MCP_IDB_PATH` | `idb` | The `idb` executable, used by the `ui_*` tools. |
+| `IOS_SIMULATOR_MCP_UI_BACKEND` | `auto` | How the interface is driven: `companion` (a direct connection to `idb_companion`, the fastest), `cli` (the `idb` command line client) or `auto` (prefers `companion` and falls back to `cli` when it cannot be started). |
+| `IOS_SIMULATOR_MCP_IDB_COMPANION_PATH` | `idb_companion` | The `idb_companion` executable. |
 | `IOS_SIMULATOR_MCP_OUTPUT_DIR` | `$TMPDIR/ios-simulator-mcp` | Folder where recordings are saved when no path is given. |
-| `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | Milliseconds the list of simulators is reused between calls. `0` disables the cache. See [Working fast](./performance#less-work-in-the-server). |
+| `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | Milliseconds the list of simulators is reused between calls. `0` disables the cache. See [Working fast](./performance#the-cached-list-of-simulators). |
 
 ## Claude Code
 

@@ -438,6 +438,43 @@ describe('SimctlEnvironmentGateway pasteboard retries', () => {
   });
 });
 
+describe('transient simctl timeouts', () => {
+  const TIMEOUT =
+    'An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=60):\nOperation timed out';
+
+  it('repeats opening a URL that times out', async () => {
+    let failures = 2;
+    const runner = new FakeCommandRunner().on('xcrun simctl openurl', () => {
+      if (failures > 0) {
+        failures -= 1;
+        throw new CommandFailedError('xcrun simctl openurl', 60, TIMEOUT);
+      }
+      return '';
+    });
+    await new SimctlAppGateway(mac(runner)).openUrl(U, 'https://example.com');
+    expect(runner.matching('xcrun simctl openurl')).toHaveLength(3);
+  });
+
+  it('gives up after three attempts', async () => {
+    const runner = new FakeCommandRunner().fail('xcrun simctl openurl', TIMEOUT, 60);
+    await expect(new SimctlAppGateway(mac(runner)).openUrl(U, 'https://example.com')).rejects.toThrow('timed out');
+    expect(runner.matching('xcrun simctl openurl')).toHaveLength(3);
+  });
+
+  it('never repeats commands that are not safe to run twice', async () => {
+    const runner = new FakeCommandRunner()
+      .fail('xcrun simctl launch', TIMEOUT, 60)
+      .fail('xcrun simctl push', TIMEOUT, 60)
+      .fail('xcrun simctl boot', TIMEOUT, 60);
+    await expect(new SimctlAppGateway(mac(runner)).launch(U, 'com.example.app')).rejects.toThrow('timed out');
+    await expect(
+      new SimctlEnvironmentGateway(mac(runner)).sendPushNotification(U, 'com.example.app', { aps: {} }),
+    ).rejects.toThrow('timed out');
+    await expect(new SimctlDeviceGateway(mac(runner)).boot(U)).rejects.toThrow('timed out');
+    expect(runner.calls).toHaveLength(3);
+  });
+});
+
 describe('SimctlLogGateway', () => {
   it('runs log show inside the simulator', async () => {
     const runner = new FakeCommandRunner().on('xcrun simctl spawn', 'Timestamp Ty\nentry\n');

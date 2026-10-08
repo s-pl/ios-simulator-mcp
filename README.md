@@ -57,6 +57,8 @@ claude mcp add ios-simulator -- node "$(pwd)/dist/index.js"
 | --- | --- | --- |
 | `IOS_SIMULATOR_MCP_XCRUN_PATH` | `xcrun` | The `xcrun` executable. |
 | `IOS_SIMULATOR_MCP_IDB_PATH` | `idb` | The `idb` executable. Useful when the MCP client does not inherit your `PATH`. |
+| `IOS_SIMULATOR_MCP_UI_BACKEND` | `auto` | `companion` (direct connection, the fastest), `cli` or `auto`. |
+| `IOS_SIMULATOR_MCP_IDB_COMPANION_PATH` | `idb_companion` | The `idb_companion` executable. |
 | `IOS_SIMULATOR_MCP_OUTPUT_DIR` | `$TMPDIR/ios-simulator-mcp` | Default folder for recordings. |
 | `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | How long the list of simulators is reused. `0` disables the cache. |
 
@@ -112,6 +114,8 @@ server cuts them down:
 - `ui_scroll_to_element` replaces swipe-and-look loops.
 - Responses are compact: one line per element or app, and screenshots in points.
 - The list of simulators is reused for a few seconds between calls.
+- It talks to `idb_companion` directly over a persistent connection: a tap takes hundredths of a
+  second instead of about six tenths.
 
 More in [Working fast](https://s-pl.github.io/ios-simulator-mcp/en/guide/performance).
 

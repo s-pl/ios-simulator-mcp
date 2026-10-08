@@ -92,6 +92,24 @@ con `get_app_container`.
 
 ## Menos trabajo en el servidor
 
+### Conexión directa con idb_companion
+
+`idb` tiene dos partes: `idb_companion`, que habla con el simulador, y un cliente en Python. El
+cliente arranca un intérprete, se conecta, hace una sola cosa y termina, en cada acción.
+
+El servidor habla directamente con `idb_companion` y mantiene la conexión abierta entre llamadas.
+Es el cambio que más reduce el tiempo de cada acción de interfaz: un toque pasa de unas seis
+décimas de segundo a unas pocas centésimas.
+
+Funciona así por defecto. Si `idb_companion` no se puede arrancar, el servidor recurre al cliente
+de línea de comandos y lo indica una vez en su salida de errores. Se controla con
+`IOS_SIMULATOR_MCP_UI_BACKEND`; consulta [Configuración](./configuracion).
+
+Con este modo solo hace falta `idb_companion` (el paquete de Homebrew); el cliente de Python deja
+de ser necesario.
+
+### Caché de la lista de simuladores
+
 Casi todas las llamadas necesitan saber qué simulador usar, y consultar la lista a `simctl` es de
 lo más lento que hace el servidor. La lista se reutiliza durante diez segundos entre llamadas.
 
@@ -99,41 +117,49 @@ La caché solo se usa para respuestas positivas. Antes de informar de que un dis
 o no está arrancado, el servidor vuelve a consultar, de modo que un simulador arrancado desde
 Xcode se encuentra siempre. Las operaciones que cambian el estado de un simulador la invalidan.
 
-La duración se ajusta con `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS`; `0` la desactiva. Consulta
-[Configuración](./configuracion).
+La duración se ajusta con `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS`; `0` la desactiva.
 
 ## Mediciones
 
 Estas cifras salen de los tests de integración, que se ejecutan en cada cambio contra un iPhone
-16e con iOS 26.2 en un runner de macOS de GitHub Actions. Es una máquina virtual lenta: en un Mac
-de desarrollo los tiempos absolutos serán menores. Lo que importa son las proporciones.
+16e con iOS 26.2 en un runner de macOS de GitHub Actions. Los tiempos absolutos varían bastante
+entre ejecuciones y entre máquinas; lo que importa son las proporciones.
 
-Pulsar tres veces el mismo botón:
+Las dos formas de hablar con `idb`, en la misma ejecución:
+
+| Modo | `ui_describe_screen` | `ui_tap` |
+| --- | --- | --- |
+| Conexión directa (`companion`) | 0,17 s | 0,19 s |
+| Cliente de línea de comandos (`cli`) | 0,79 s | 0,62 s |
+
+Una vez establecida la conexión, los toques sucesivos bajaron a unos 0,01 s de media.
+
+Pulsar tres veces el mismo botón, con la conexión directa:
 
 | Método | Llamadas a herramientas | Tiempo en el servidor |
 | --- | --- | --- |
-| `ui_describe_screen` y `ui_tap` por coordenadas | 6 | 10,0 s |
-| `ui_tap_element` | 3 | 5,6 s |
-| `ui_sequence` | 1 | 6,2 s |
+| `ui_describe_screen` y `ui_tap` por coordenadas | 6 | 0,7 s |
+| `ui_tap_element` | 3 | 0,8 s |
+| `ui_sequence` | 1 | 1,0 s |
 
-`ui_tap_element` reduce el tiempo del servidor casi a la mitad. `ui_sequence` no ahorra tiempo de
-servidor frente a tres `ui_tap_element`; lo que ahorra son dos idas y vueltas con el modelo, que
-no aparecen en esta tabla y suelen costar varios segundos cada una.
+Con la conexión directa el tiempo del servidor deja de ser lo relevante: las tres variantes
+tardan alrededor de un segundo. Lo que las distingue es el número de idas y vueltas con el
+modelo, que no aparecen en la tabla y suelen costar varios segundos cada una. Con el cliente de
+línea de comandos, la primera variante tardaba 10,0 s y la segunda 5,6 s.
 
-Coste de cada operación:
+Otras operaciones:
 
 | Operación | Tiempo medio |
 | --- | --- |
-| `ui_describe_screen` | 0,9 s |
-| `ui_tap` | 0,6 s |
-| Listar simuladores, que es lo que la caché evita en cada llamada | 1,4 s |
+| Listar simuladores, que es lo que la caché evita en cada llamada | 0,3 a 1,4 s |
+| Una llamada a `simctl` con el dispositivo en caché | 0,3 a 1,2 s |
 
 Tamaño de las respuestas:
 
 | Respuesta | Tamaño |
 | --- | --- |
 | `ui_describe_screen` de una pantalla con 16 elementos | 964 caracteres |
-| Captura a resolución nativa (JPEG) | 167 kB |
+| Captura a resolución nativa (JPEG) | 168 kB |
 | Captura en puntos (JPEG) | 29 kB |
 
 La captura en puntos ocupa algo menos de una sexta parte.

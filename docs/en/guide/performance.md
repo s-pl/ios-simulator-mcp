@@ -90,6 +90,24 @@ ask for it with `get_app_container`.
 
 ## Less work in the server
 
+### A direct connection to idb_companion
+
+`idb` has two parts: `idb_companion`, which talks to the simulator, and a Python client. The
+client starts an interpreter, connects, does one thing and exits, on every action.
+
+The server talks to `idb_companion` directly and keeps the connection open between calls. It is
+the change that cuts the time of each interface action the most: a tap goes from about six tenths
+of a second to a few hundredths.
+
+This is the default. If `idb_companion` cannot be started, the server falls back to the command
+line client and says so once on its error output. It is controlled with
+`IOS_SIMULATOR_MCP_UI_BACKEND`; see [Configuration](./configuration).
+
+In this mode only `idb_companion` (the Homebrew package) is needed; the Python client is no
+longer required.
+
+### The cached list of simulators
+
 Almost every call needs to know which simulator to use, and asking `simctl` for the list is among
 the slowest things the server does. The list is reused for ten seconds between calls.
 
@@ -97,41 +115,49 @@ The cache is only used for positive answers. Before reporting that a device does
 not booted, the server reads the list again, so a simulator booted from Xcode is always found.
 Operations that change the state of a simulator invalidate it.
 
-The duration is set with `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS`; `0` disables it. See
-[Configuration](./configuration).
+The duration is set with `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS`; `0` disables it.
 
 ## Measurements
 
 These figures come from the integration tests, which run on every change against an iPhone 16e
-with iOS 26.2 on a GitHub Actions macOS runner. That is a slow virtual machine: on a development
-Mac the absolute times will be lower. What matters is the proportions.
+with iOS 26.2 on a GitHub Actions macOS runner. Absolute times vary a good deal between runs and
+between machines; what matters is the proportions.
 
-Pressing the same button three times:
+The two ways of talking to `idb`, in the same run:
+
+| Mode | `ui_describe_screen` | `ui_tap` |
+| --- | --- | --- |
+| Direct connection (`companion`) | 0.17 s | 0.19 s |
+| Command line client (`cli`) | 0.79 s | 0.62 s |
+
+Once the connection was established, successive taps dropped to about 0.01 s on average.
+
+Pressing the same button three times, over the direct connection:
 
 | Approach | Tool calls | Server time |
 | --- | --- | --- |
-| `ui_describe_screen` and `ui_tap` by coordinates | 6 | 10.0 s |
-| `ui_tap_element` | 3 | 5.6 s |
-| `ui_sequence` | 1 | 6.2 s |
+| `ui_describe_screen` and `ui_tap` by coordinates | 6 | 0.7 s |
+| `ui_tap_element` | 3 | 0.8 s |
+| `ui_sequence` | 1 | 1.0 s |
 
-`ui_tap_element` nearly halves the server time. `ui_sequence` saves no server time over three
-`ui_tap_element` calls; what it saves is two round trips with the model, which do not show in this
-table and usually cost several seconds each.
+With the direct connection, server time stops being what matters: the three variants take about
+a second. What tells them apart is the number of round trips with the model, which do not show in
+the table and usually cost several seconds each. With the command line client, the first variant
+took 10.0 s and the second 5.6 s.
 
-Cost of each operation:
+Other operations:
 
 | Operation | Average time |
 | --- | --- |
-| `ui_describe_screen` | 0.9 s |
-| `ui_tap` | 0.6 s |
-| Listing simulators, which is what the cache avoids on every call | 1.4 s |
+| Listing simulators, which is what the cache avoids on every call | 0.3 to 1.4 s |
+| One `simctl` call with the device cached | 0.3 to 1.2 s |
 
 Size of the responses:
 
 | Response | Size |
 | --- | --- |
 | `ui_describe_screen` of a screen with 16 elements | 964 characters |
-| Screenshot at native resolution (JPEG) | 167 kB |
+| Screenshot at native resolution (JPEG) | 168 kB |
 | Screenshot in points (JPEG) | 29 kB |
 
 The screenshot in points is a little under a sixth of the size.
