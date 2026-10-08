@@ -114,6 +114,9 @@ describe.skipIf(!isMac)('real simulator', () => {
   });
 
   it.skipIf(!hasIdb)('inspects and drives the UI through idb', async () => {
+    // idb reads accessibility through the Simulator app, so its window must exist.
+    await call('open_simulator_app', { device: udid });
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
     await call('ui_press_button', { button: 'HOME', device: udid });
     const { elements } = JSON.parse(textOf(await call('ui_describe_screen', { device: udid }))) as {
       elements: { tapPoint: { x: number; y: number } }[];

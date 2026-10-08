@@ -3,7 +3,7 @@
 [![CI](https://github.com/s-pl/ios-simulator-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/s-pl/ios-simulator-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**📖 Documentación completa: <https://s-pl.github.io/ios-simulator-mcp/>**
+Documentación completa: <https://s-pl.github.io/ios-simulator-mcp/>
 
 Servidor [MCP](https://modelcontextprotocol.io) para controlar el Simulador de iOS desde un agente
 (Claude Code, Claude Desktop, etc.): gestionar dispositivos, instalar y lanzar apps, tocar la
@@ -148,7 +148,8 @@ npm run typecheck          # comprueba tipos (src + test)
 npm test                   # tests unitarios y e2e en memoria (no necesitan Mac)
 npm run test:integration   # tests contra un simulador real (solo macOS)
 npm run build              # compila a dist/
-npm run docs:tools         # regenera la referencia de herramientas de docs/
+npm run docs:dev           # sirve la documentación en local
+npm run docs:tools         # regenera la referencia de herramientas
 ```
 
 Los tests no necesitan un Mac: `FakeCommandRunner` sustituye la ejecución de comandos y
@@ -157,8 +158,9 @@ verificando los comandos exactos que se emitirían.
 Los tests de integración (`test/integration/`) arrancan un simulador de verdad y se ejecutan en CI
 sobre un runner de macOS.
 
-El sitio de documentación vive en `docs/` (HTML estático servido por GitHub Pages). La referencia
-de herramientas (`docs/assets/tools.js`) se genera a partir del propio servidor.
+La documentación vive en `docs/` y está hecha con [VitePress](https://vitepress.dev); se publica
+en GitHub Pages con cada cambio en `main`. La referencia de herramientas
+(`docs/referencia/herramientas.md`) se genera a partir del propio servidor.
 
 ## Licencia
 

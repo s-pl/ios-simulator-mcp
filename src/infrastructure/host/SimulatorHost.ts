@@ -13,7 +13,8 @@ export interface SimulatorHostOptions {
   readonly platform?: NodeJS.Platform;
 }
 
-const DEFAULT_TIMEOUT_MS = 60_000;
+/** Generous on purpose: simctl can stall for a long time while a simulator is still settling after boot. */
+const DEFAULT_TIMEOUT_MS = 120_000;
 const XCODE_HINT = 'Install Xcode and its command line tools (xcode-select --install).';
 
 /**
