@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
-import { loadConfig } from '../../src/config.js';
+import { loadConfig, type ServerConfig } from '../../src/config.js';
 import { createContainer, type Container } from '../../src/container.js';
 
 /** Shared plumbing of the tests that drive a real simulator. */
@@ -33,8 +33,11 @@ export class Session {
   udid = '';
   deviceName = '';
 
+  /** @param overrides Settings that differ from the environment's configuration. */
+  constructor(private readonly overrides: Partial<ServerConfig> = {}) {}
+
   async start(): Promise<this> {
-    this.container = createContainer(config);
+    this.container = createContainer({ ...config, ...this.overrides }, { log: (message) => console.log(message) });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await this.container.server.connect(serverTransport);
     await this.client.connect(clientTransport);

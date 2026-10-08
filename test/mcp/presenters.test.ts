@@ -166,6 +166,8 @@ describe('loadConfig', () => {
       idbPath: 'idb',
       outputDirectory: path.join(os.tmpdir(), 'ios-simulator-mcp'),
       deviceCacheTtlMs: 10_000,
+      companionPath: 'idb_companion',
+      uiBackend: 'auto',
     });
   });
 
@@ -187,6 +189,22 @@ describe('loadConfig', () => {
 
   it.each(['', '   ', 'soon', '-5', '1.5', '10s'])('ignores the invalid cache duration %j', (value) => {
     expect(loadConfig({ IOS_SIMULATOR_MCP_DEVICE_CACHE_MS: value }).deviceCacheTtlMs).toBe(10_000);
+  });
+
+  it.each([
+    ['cli', 'cli'],
+    ['COMPANION', 'companion'],
+    [' auto ', 'auto'],
+    ['grpc', 'auto'],
+    ['', 'auto'],
+  ])('reads the UI backend %j as %s', (value, expected) => {
+    expect(loadConfig({ IOS_SIMULATOR_MCP_UI_BACKEND: value }).uiBackend).toBe(expected);
+  });
+
+  it('reads the companion path', () => {
+    expect(loadConfig({ IOS_SIMULATOR_MCP_IDB_COMPANION_PATH: '/opt/idb_companion' }).companionPath).toBe(
+      '/opt/idb_companion',
+    );
   });
 
   it('treats blank values as unset', () => {

@@ -11,7 +11,7 @@ import { createContainer } from './container.js';
  */
 async function main(): Promise<void> {
   const config = loadConfig();
-  const container = createContainer(config);
+  const container = createContainer(config, { log: (message) => console.error(message) });
 
   let shuttingDown = false;
   const shutdown = async (): Promise<void> => {

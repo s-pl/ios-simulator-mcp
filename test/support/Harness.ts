@@ -5,7 +5,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 import { loadConfig, type ServerConfig } from '../../src/config.js';
-import { createContainer, type Container } from '../../src/container.js';
+import { createContainer, type Container, type ContainerOverrides } from '../../src/container.js';
 import { FakeClock } from './FakeClock.js';
 import { deviceListJson, FakeCommandRunner } from './FakeCommandRunner.js';
 
@@ -26,6 +26,8 @@ export interface ToolOutcome {
 export interface HarnessOptions {
   readonly platform?: NodeJS.Platform;
   readonly config?: Partial<ServerConfig>;
+  /** How the server reaches an idb companion, for tests of the companion backend. */
+  readonly companion?: Pick<ContainerOverrides, 'companionConnector' | 'companionPort'>;
 }
 
 /**
@@ -36,6 +38,8 @@ export interface HarnessOptions {
 export class Harness {
   readonly runner = new FakeCommandRunner().on('xcrun simctl list devices', deviceListJson());
   readonly clock = new FakeClock();
+  /** Diagnostics the server logged outside of tool responses. */
+  readonly logs: string[] = [];
   private readonly client = new Client({ name: 'test-client', version: '0.0.0' });
   private container: Container | undefined;
 
@@ -47,12 +51,16 @@ export class Harness {
     const config: ServerConfig = {
       ...loadConfig({}),
       outputDirectory: path.join(os.tmpdir(), 'ios-simulator-mcp-test'),
+      // The command line backend is the one whose commands the fake runner can observe.
+      uiBackend: 'cli',
       ...options.config,
     };
     this.container = createContainer(config, {
       runner: this.runner,
       platform: options.platform ?? 'darwin',
       clock: this.clock,
+      log: (message) => this.logs.push(message),
+      ...options.companion,
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await this.container.server.connect(serverTransport);

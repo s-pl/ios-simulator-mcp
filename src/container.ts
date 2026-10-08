@@ -8,6 +8,11 @@ import { LogService } from './application/LogService.js';
 import { MediaService } from './application/MediaService.js';
 import { UiService } from './application/UiService.js';
 import type { ServerConfig } from './config.js';
+import type { UiAutomationGateway } from './domain/ports/UiAutomationGateway.js';
+import type { CompanionConnector } from './infrastructure/companion/CompanionConnection.js';
+import { CompanionPool } from './infrastructure/companion/CompanionPool.js';
+import { CompanionUiAutomationGateway } from './infrastructure/companion/CompanionUiAutomationGateway.js';
+import { FallbackUiAutomationGateway } from './infrastructure/companion/FallbackUiAutomationGateway.js';
 import { SimulatorHost } from './infrastructure/host/SimulatorHost.js';
 import { IdbUiAutomationGateway } from './infrastructure/idb/IdbUiAutomationGateway.js';
 import type { CommandRunner } from './infrastructure/process/CommandRunner.js';
@@ -30,6 +35,11 @@ export interface ContainerOverrides {
   readonly runner?: CommandRunner;
   readonly platform?: NodeJS.Platform;
   readonly clock?: Clock;
+  /** How to reach an idb companion, and on which port to start one. */
+  readonly companionConnector?: CompanionConnector;
+  readonly companionPort?: () => Promise<number>;
+  /** Receives diagnostics that are not part of any tool response. */
+  readonly log?: (message: string) => void;
 }
 
 /** The assembled application. */
@@ -58,12 +68,13 @@ export function createContainer(config: ServerConfig, overrides: ContainerOverri
     outputDirectory: config.outputDirectory,
   });
   const environmentGateway = new SimctlEnvironmentGateway(host);
-  const uiService = new UiService(
-    new IdbUiAutomationGateway(host, config.idbPath),
-    environmentGateway,
-    resolver,
-    overrides.clock,
-  );
+  const companions = new CompanionPool(host, {
+    companionPath: config.companionPath,
+    connect: overrides.companionConnector,
+    freePort: overrides.companionPort,
+  });
+  const uiGateway = createUiGateway(config, host, companions, overrides.log ?? (() => undefined));
+  const uiService = new UiService(uiGateway, environmentGateway, resolver, overrides.clock);
   const environmentService = new EnvironmentService(environmentGateway, resolver);
   const logService = new LogService(new SimctlLogGateway(host), resolver);
 
@@ -81,7 +92,29 @@ export function createContainer(config: ServerConfig, overrides: ContainerOverri
     server,
     dispose: async () => {
       await mediaService.dispose();
+      await companions.dispose();
       await server.close();
     },
   };
+}
+
+/** Picks the adapter that drives the user interface, according to the configuration. */
+function createUiGateway(
+  config: ServerConfig,
+  host: SimulatorHost,
+  companions: CompanionPool,
+  log: (message: string) => void,
+): UiAutomationGateway {
+  const cli = new IdbUiAutomationGateway(host, config.idbPath);
+  const companion = new CompanionUiAutomationGateway(companions);
+  switch (config.uiBackend) {
+    case 'cli':
+      return cli;
+    case 'companion':
+      return companion;
+    case 'auto':
+      return new FallbackUiAutomationGateway(companion, cli, (reason) =>
+        log(`Falling back to the idb command line for UI automation. ${reason}`),
+      );
+  }
 }

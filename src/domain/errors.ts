@@ -235,3 +235,12 @@ export class PasteUnavailableError extends SimulatorError {
     );
   }
 }
+
+/** A way of driving the user interface could not be started on this machine. */
+export class UiBackendUnavailableError extends SimulatorError {
+  readonly code = 'UI_BACKEND_UNAVAILABLE';
+
+  constructor(backend: string, reason: string, options?: ErrorOptions) {
+    super(`The ${backend} UI backend is not available: ${reason}`, options);
+  }
+}

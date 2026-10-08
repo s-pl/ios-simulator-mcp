@@ -208,6 +208,26 @@ describe.skipIf(!canRun)('fixture app on a real simulator', () => {
     const listMs = await average(3, () => session.call('list_devices'));
     const cheapMs = await average(5, () => session.ok('get_clipboard'));
 
+    // The same two operations through each way of talking to idb.
+    const backendRows: string[] = [];
+    for (const uiBackend of ['companion', 'cli'] as const) {
+      const other = new Session({ uiBackend });
+      try {
+        await other.start();
+        const first = await other.attempt('ui_describe_screen');
+        if (first.isError) {
+          backendRows.push(`| ${uiBackend} | not available | not available |`);
+          console.log(`BACKEND ${uiBackend} unavailable: ${first.text}`);
+          continue;
+        }
+        const describe = await average(5, () => other.ok('ui_describe_screen'));
+        const tap = await average(5, () => other.ok('ui_tap', { x, y }));
+        backendRows.push(`| ${uiBackend} | ${describe} | ${tap} |`);
+      } finally {
+        await other.stop();
+      }
+    }
+
     // Size of what is sent back to the model.
     const screen = await session.ok('ui_describe_screen');
     const full = await session.ok('screenshot', { resolution: 'full' });
@@ -232,6 +252,12 @@ describe.skipIf(!canRun)('fixture app on a real simulator', () => {
       `| ui_tap (one idb call) | ${tapMs} |`,
       `| list_devices (what the device cache saves per call) | ${listMs} |`,
       `| get_clipboard (one simctl call, device cached) | ${cheapMs} |`,
+      '',
+      '## UI backends (average, ms)',
+      '',
+      '| Backend | ui_describe_screen | ui_tap |',
+      '| --- | --- | --- |',
+      ...backendRows,
       '',
       '## Response sizes',
       '',

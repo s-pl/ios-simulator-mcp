@@ -49,6 +49,12 @@ export class SimulatorHost {
     return this.runner.start(this.xcrunPath, ['simctl', ...args]);
   }
 
+  /** Starts any other long-running executable of the host. */
+  start(command: string, args: readonly string[]): BackgroundProcess {
+    this.assertMacOs();
+    return this.runner.start(command, args);
+  }
+
   /** Runs any other executable of the host. */
   async run(command: string, args: readonly string[], options: RunOptions = {}): Promise<CommandResult> {
     this.assertMacOs();
