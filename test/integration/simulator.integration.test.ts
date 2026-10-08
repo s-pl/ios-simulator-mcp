@@ -280,12 +280,12 @@ describe.skipIf(!isMac)('real simulator', () => {
         device: udid,
         steps: [
           { action: 'tap_element', identifier: 'com.apple.settings.search', timeoutSeconds: 30 },
-          { action: 'wait', seconds: 3 },
+          { action: 'wait', seconds: 6 },
         ],
-        describeAfter: true,
       });
-      console.log(`PASTE FLOW 1 (search opened):\n${opened.text}`);
-      const field = /^(?:SearchField|TextField)\b.*@\((\d+),(\d+)\)/m.exec(opened.text);
+      const screen = await call('ui_describe_screen', { device: udid, includeUnlabeled: true });
+      console.log(`PASTE FLOW 1 (search opened):\n${opened.text}\n${screen.text}`);
+      const field = /^(?:SearchField|TextField|TextArea)\b.*@\((\d+),(\d+)\)/m.exec(screen.text);
       if (!field) {
         console.log('PASTE FLOW: no text field found, cannot continue');
         return;

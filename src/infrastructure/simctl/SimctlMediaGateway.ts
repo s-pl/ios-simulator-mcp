@@ -15,8 +15,11 @@ import { existingPath } from '../host/paths.js';
 import type { SimulatorHost } from '../host/SimulatorHost.js';
 import type { BackgroundProcess } from '../process/CommandRunner.js';
 
-/** Time `recordVideo` is given to report that it is capturing frames. */
-const RECORDING_START_TIMEOUT_MS = 15_000;
+/**
+ * Time `recordVideo` is given to report that it is capturing frames. It
+ * normally answers within a second, but can take far longer on a busy machine.
+ */
+const RECORDING_START_TIMEOUT_MS = 60_000;
 /** Time `recordVideo` is given to finalise the video file after SIGINT. */
 const RECORDING_STOP_TIMEOUT_MS = 30_000;
 
