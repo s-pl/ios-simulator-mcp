@@ -20,16 +20,10 @@ fallar.
 3. Toca la opción de pegar del menú que aparece: `ui_tap_element` con `label: "Paste"`, o
    `"Pegar"` si el simulador está en español.
 
-En una sola llamada:
-
-```json
-{
-  "steps": [
-    { "action": "tap_element", "label": "Nombre", "durationSeconds": 1 },
-    { "action": "tap_element", "label": "Paste", "timeoutSeconds": 5 }
-  ]
-}
-```
+El primer paso está comprobado en un simulador real: el portapapeles conserva tildes, ñ y emojis.
+Los pasos 2 y 3 son el gesto habitual de iOS para pegar, pero no están cubiertos por los tests
+automáticos: el menú depende de cada app y de su idioma. Si no aparece la opción de pegar, usa
+`ui_describe_screen` tras la pulsación larga para ver qué ofrece el menú.
 
 ## Gestos desde los bordes de la pantalla
 

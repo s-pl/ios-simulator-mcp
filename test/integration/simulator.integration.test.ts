@@ -265,56 +265,6 @@ describe.skipIf(!isMac)('real simulator', () => {
       await ok('ui_press_button', { button: 'HOME' });
     });
 
-    /**
-     * The documented way to enter text the keyboard cannot type. Menus are
-     * localised and their timing varies, so the outcome is logged for
-     * inspection rather than asserted.
-     */
-    it('pastes clipboard text into a field (informational)', async () => {
-      const text = 'Añadir canción';
-      await ok('set_clipboard', { text });
-      await ok('launch_app', { bundleId: SETTINGS, terminateRunning: true });
-
-      // 1. Open the search of Settings and see which element is the text field.
-      const opened = await call('ui_sequence', {
-        device: udid,
-        steps: [
-          { action: 'tap_element', identifier: 'com.apple.settings.search', timeoutSeconds: 30 },
-          { action: 'wait', seconds: 6 },
-        ],
-      });
-      const screen = await call('ui_describe_screen', { device: udid, includeUnlabeled: true });
-      console.log(`PASTE FLOW 1 (search opened):\n${opened.text}\n${screen.text}`);
-      const field = /^(?:SearchField|TextField|TextArea)\b.*@\((\d+),(\d+)\)/m.exec(screen.text);
-      if (!field) {
-        console.log('PASTE FLOW: no text field found, cannot continue');
-        return;
-      }
-
-      // 2. Long-press it to bring up the edit menu.
-      const pressed = await call('ui_tap', {
-        device: udid,
-        x: Number(field[1]),
-        y: Number(field[2]),
-        durationSeconds: 1.5,
-        describeAfter: true,
-      });
-      console.log(`PASTE FLOW 2 (after long press):\n${pressed.text}`);
-
-      // 3. Choose Paste and look for the text.
-      const pasted = await call('ui_sequence', {
-        device: udid,
-        steps: [
-          { action: 'tap_element', label: 'Paste', timeoutSeconds: 8 },
-          { action: 'wait', seconds: 2 },
-        ],
-        describeAfter: true,
-      });
-      console.log(`PASTE FLOW 3 (after paste):\n${pasted.text}`);
-      console.log(`PASTE FLOW: ${!pasted.isError && pasted.text.includes(text) ? 'worked' : 'did not work'}`);
-      await ok('ui_press_button', { button: 'HOME' });
-    });
-
     it('refuses untypeable text with a workaround instead of a traceback', async () => {
       const result = await call('ui_type_text', { text: 'España', device: udid });
       expect(result.text).toMatch(/^\[UNSUPPORTED_TEXT\]/);
