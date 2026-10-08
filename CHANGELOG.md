@@ -1,5 +1,31 @@
 # Cambios
 
+## 1.2.0
+
+### Nuevo
+
+- `ui_paste_text`: introduce cualquier texto en un campo a través del portapapeles (tildes, ñ,
+  emojis, cualquier alfabeto), en una sola llamada. Comprobado en un simulador real. También
+  disponible como paso `paste_text` de `ui_sequence`.
+- `ui_scroll_to_element`: se desplaza hasta que un elemento es visible. También disponible como
+  paso `scroll_to_element`.
+- Documentación en inglés, junto a la española, y README en ambos idiomas.
+- App de prueba SwiftUI (`test/fixtures/app/`) que el CI compila e instala en un simulador real
+  para comprobar escritura, pegado, desplazamiento, enlaces, permisos y notificaciones push.
+- Mediciones de tiempos y tamaños de respuesta en cada ejecución del CI.
+- ESLint y Prettier, exigidos en el CI.
+- Flujo de publicación en npm al crear una release.
+
+### Cambios
+
+- El paquete pasa a llamarse `@s-pl/ios-simulator-mcp`, porque `ios-simulator-mcp` ya existe en npm.
+- `ui_type_text` y el error `UNSUPPORTED_TEXT` remiten a `ui_paste_text`.
+- `open_url` avisa de que iOS puede pedir confirmación al abrir un enlace a una app.
+
+### Documentado
+
+- No hay gestos de varios dedos (pellizco, rotación): `idb` simula un solo dedo.
+
 ## 1.1.0
 
 Versión centrada en reducir el tiempo que un agente tarda en manejar el simulador y en corregir

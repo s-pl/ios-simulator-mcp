@@ -6,12 +6,14 @@
 | --- | --- |
 | `npm run build` | Compila a `dist/`. |
 | `npm run typecheck` | Comprueba los tipos de `src/` y `test/`. |
+| `npm run lint` | Ejecuta ESLint con reglas que usan la información de tipos. |
+| `npm run format` | Formatea el código con Prettier. `format:check` solo comprueba. |
 | `npm test` | Compila y ejecuta los tests unitarios y de extremo a extremo. No necesitan un Mac. |
 | `npm run test:watch` | Ejecuta los tests en modo observación mientras desarrollas. |
 | `npm run test:integration` | Tests contra un simulador real. Solo macOS; arrancan un dispositivo. |
 | `npm run docs:dev` | Sirve esta documentación en local. |
 | `npm run docs:build` | Genera el sitio estático. |
-| `npm run docs:tools` | Regenera la referencia de herramientas a partir del servidor. |
+| `npm run docs:tools` | Regenera la referencia de herramientas a partir del servidor, en ambos idiomas. |
 
 ## Tests
 
@@ -20,18 +22,29 @@
 | Carpeta | Qué prueba | Qué se sustituye |
 | --- | --- | --- |
 | `test/domain/` | Modelo, búsqueda de elementos, errores. | Nada: es código puro. |
-| `test/application/` | Reglas de cada servicio: caché, esperas, validaciones, secuencias. | Los puertos, por implementaciones en memoria. |
+| `test/application/` | Reglas de cada servicio: caché, esperas, validaciones, secuencias, pegado, desplazamiento. | Los puertos, por implementaciones en memoria. |
 | `test/infrastructure/` | Comandos que construye cada gateway y análisis de su salida. | La ejecución de comandos. |
 | `test/mcp/` | El servidor completo a través de un cliente MCP real, en memoria. | La ejecución de comandos y el reloj. |
 | `test/process/` | El binario compilado, arrancado como proceso y manejado por stdio. | Nada. |
 
 `npm run test:integration` añade otro nivel: arranca un simulador de verdad y ejecuta las
-herramientas contra él. Las pruebas de interfaz se omiten si `idb` no está instalado. Es lo que
-demuestra que los comandos que esperan los demás tests son comandos que las herramientas reales
-aceptan.
+herramientas contra él. Es lo que demuestra que los comandos que esperan los demás tests son
+comandos que las herramientas reales aceptan. Tiene dos conjuntos:
 
-La integración continua ejecuta `npm test` en Ubuntu y macOS con Node 20 y 22, y los tests de
-integración en un runner de macOS con `idb` instalado.
+- `simulator.integration.test.ts` usa las apps que trae iOS.
+- `fixture.integration.test.ts` instala una pequeña app SwiftUI de `test/fixtures/app/`,
+  compilada con `swiftc` sin proyecto de Xcode, y comprueba lo que muestra tras escribir, pegar,
+  desplazarse, abrir un enlace o recibir una push. También registra tiempos y tamaños de
+  respuesta. Necesita la variable `FIXTURE_APP`:
+
+```bash
+FIXTURE_APP="$(bash test/fixtures/app/build.sh | tail -n 1)" npm run test:integration
+```
+
+Las pruebas de interfaz se omiten si `idb` no está instalado.
+
+La integración continua ejecuta el linter, `npm test` en Ubuntu y macOS con Node 20 y 22, y los
+tests de integración en un runner de macOS con `idb` instalado.
 
 Utilidades de test en `test/support/`:
 
@@ -71,8 +84,16 @@ defineTool({
 ## Documentación
 
 El sitio está hecho con [VitePress](https://vitepress.dev). El contenido son los archivos Markdown
-de `docs/` y la configuración está en `docs/.vitepress/config.ts`. Cada cambio en `main` lo
+de `docs/` (español en la raíz, inglés en `docs/en/`) y la configuración está en
+`docs/.vitepress/config.ts`. Cada cambio en `main` lo
 publica en GitHub Pages el flujo de trabajo `.github/workflows/docs.yml`.
 
 La página [Herramientas](../referencia/herramientas) se genera con
 `scripts/generate-tool-docs.mjs` y no debe editarse a mano.
+
+## Publicar una versión
+
+1. Actualiza la versión en `package.json` y añade una entrada a `CHANGELOG.md`.
+2. Etiqueta el commit (`git tag v1.2.0 && git push --tags`) y crea una release en GitHub.
+3. Al publicar la release se ejecuta `.github/workflows/publish.yml`, que publica el paquete en
+   npm si el secreto `NPM_TOKEN` está configurado.

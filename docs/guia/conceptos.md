@@ -19,8 +19,9 @@ Las operaciones en las que adivinar sería peligroso, `boot_device` y `erase_dev
 
 ## Localizar elementos
 
-`ui_tap_element`, `ui_wait_for_element` y los pasos equivalentes de `ui_sequence` designan un
-elemento con uno o varios de estos criterios, que se combinan con «y»:
+`ui_tap_element`, `ui_wait_for_element`, `ui_paste_text`, `ui_scroll_to_element` y los pasos
+equivalentes de `ui_sequence` designan un elemento con uno o varios de estos criterios, que se
+combinan con «y»:
 
 | Criterio | Coincidencia |
 | --- | --- |

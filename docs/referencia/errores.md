@@ -19,7 +19,8 @@ Los fallos se devuelven como resultado de error de la herramienta, con el format
 | `NO_ACTIVE_RECORDING` | No hay ninguna grabación que detener. |
 | `ELEMENT_NOT_FOUND` | Ningún elemento en pantalla coincide con la búsqueda. El mensaje lista los que hay. |
 | `AMBIGUOUS_ELEMENT` | Varios elementos coinciden. El mensaje los lista numerados para elegir con `index`. |
-| `UNSUPPORTED_TEXT` | El texto contiene caracteres que el teclado simulado no puede escribir. Consulta [Limitaciones](../guia/limitaciones). |
+| `UNSUPPORTED_TEXT` | El texto contiene caracteres que el teclado simulado no puede escribir. Usa `ui_paste_text`. |
+| `PASTE_UNAVAILABLE` | El texto se copió, pero el campo no ofreció la opción de pegar. Consulta [Limitaciones](../guia/limitaciones). |
 | `APP_NOT_INSTALLED` | La app indicada no está instalada en el simulador. |
 | `PATH_NOT_FOUND` | Un archivo o carpeta indicado no existe en el Mac. |
 | `INVALID_ARGUMENT` | Un valor es válido sintácticamente pero no aceptable. |

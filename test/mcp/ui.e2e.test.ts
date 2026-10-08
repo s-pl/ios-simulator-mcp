@@ -328,15 +328,15 @@ describe('scrolling to an element', () => {
     const result = await harness.ok('ui_scroll_to_element', { label: 'Fila 8' });
     expect(result.text).toBe(`Done on ${DEVICE}: scroll_to_element label "fila 8" -> Cell "Fila 8" @(195,322) 390x44.`);
     expect(harness.runner.matching('idb ui swipe')).toEqual([
-      `idb ui swipe ${IDB} --duration 0.3 195 591 195 253`,
-      `idb ui swipe ${IDB} --duration 0.3 195 591 195 253`,
+      `idb ui swipe ${IDB} --duration 0.3 195 675 195 169`,
+      `idb ui swipe ${IDB} --duration 0.3 195 675 195 169`,
     ]);
   });
 
   it('scrolls back up', async () => {
     await withScreens(page(7), page(4));
     await harness.ok('ui_scroll_to_element', { label: 'Fila 4', direction: 'up' });
-    expect(harness.runner.matching('idb ui swipe')).toEqual([`idb ui swipe ${IDB} --duration 0.3 195 253 195 591`]);
+    expect(harness.runner.matching('idb ui swipe')).toEqual([`idb ui swipe ${IDB} --duration 0.3 195 169 195 675`]);
   });
 
   it('reports what is on screen when the element is not in the list', async () => {

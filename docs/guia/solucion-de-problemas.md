@@ -24,7 +24,19 @@ herramientas de interfaz. Ejecuta `open_simulator_app` o abre Simulator a mano.
 ## `ui_type_text` responde `UNSUPPORTED_TEXT`
 
 El texto contiene tildes, ñ, emojis u otros caracteres que el teclado simulado no puede escribir.
-Usa el portapapeles, como se explica en [Limitaciones conocidas](./limitaciones).
+Usa `ui_paste_text`, que introduce cualquier texto.
+
+## `ui_paste_text` responde `PASTE_UNAVAILABLE`
+
+El texto se copió, pero no apareció ninguna opción de pegar tras mantener pulsado el campo.
+Comprueba que el destino es un campo de texto editable. Si el simulador está en un idioma que la
+herramienta no reconoce, el error lista lo que hay en pantalla: toca la opción de pegar con
+`ui_tap_element`. Consulta [Limitaciones conocidas](./limitaciones).
+
+## Un enlace no llega a la app
+
+iOS puede estar pidiendo confirmación para abrir la app. Lee la pantalla con
+`ui_describe_screen` y toca el botón «Open» o «Abrir».
 
 ## La captura sale en negro
 

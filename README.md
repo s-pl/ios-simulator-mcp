@@ -3,192 +3,181 @@
 [![CI](https://github.com/s-pl/ios-simulator-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/s-pl/ios-simulator-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Documentación completa: <https://s-pl.github.io/ios-simulator-mcp/>
+[Léelo en español](README.es.md) · [Documentation](https://s-pl.github.io/ios-simulator-mcp/en/)
 
-Servidor [MCP](https://modelcontextprotocol.io) para controlar el Simulador de iOS desde un agente
-(Claude Code, Claude Desktop, etc.): gestionar dispositivos, instalar y lanzar apps, tocar la
-pantalla, leer el árbol de accesibilidad, capturar pantalla/vídeo, simular ubicación, permisos y
-notificaciones push, y leer logs.
+An [MCP](https://modelcontextprotocol.io) server to control the iOS Simulator from an agent (Claude
+Code, Claude Desktop and others): manage devices, install and launch apps, drive the interface by
+text, read the accessibility tree, capture the screen, simulate location, permissions and push
+notifications, and read logs.
 
-## Requisitos
+It is designed to be fast to drive: an agent can tap an element by its text, get the resulting
+screen back from any action, and send a whole flow as a single call.
 
-| Requisito | Para qué | Instalación |
+## Requirements
+
+| Requirement | What for | Install |
 | --- | --- | --- |
-| macOS + Xcode | Todo (`xcrun simctl`) | App Store + `xcode-select --install` |
-| Node.js ≥ 20 | Ejecutar el servidor | `brew install node` |
-| [idb](https://fbidb.io) *(opcional)* | Solo las herramientas `ui_*` | `brew tap facebook/fb && brew install idb-companion` y `pipx install fb-idb` (si Homebrew rechaza el tap, antes `brew trust facebook/fb`) |
+| macOS + Xcode | Everything (`xcrun simctl`) | App Store + `xcode-select --install` |
+| Node.js 20 or later | Running the server | `brew install node` |
+| [idb](https://fbidb.io) (optional) | Only the `ui_*` tools | `brew tap facebook/fb && brew install idb-companion` and `pipx install fb-idb` (if Homebrew rejects the tap, run `brew trust facebook/fb` first) |
 
-> El simulador solo existe en macOS. En otros sistemas el servidor arranca y lista sus
-> herramientas, pero cada llamada responde `[UNSUPPORTED_PLATFORM]`.
+The simulator only exists on macOS. Elsewhere the server starts and lists its tools, but every
+call answers `[UNSUPPORTED_PLATFORM]`.
 
-## Instalación
+## Installation
 
 ```bash
 git clone https://github.com/s-pl/ios-simulator-mcp.git
 cd ios-simulator-mcp
-npm install        # también compila a dist/
-npm test           # opcional
+npm install        # also builds into dist/
 ```
 
-### Registrar en Claude Code
+### Claude Code
 
 ```bash
 claude mcp add ios-simulator -- node "$(pwd)/dist/index.js"
 ```
 
-### Registrar en Claude Desktop (u otro cliente)
+### Claude Desktop and other clients
 
 ```json
 {
   "mcpServers": {
     "ios-simulator": {
       "command": "node",
-      "args": ["/ruta/absoluta/ios-simulator-mcp/dist/index.js"],
-      "env": { "IOS_SIMULATOR_MCP_OUTPUT_DIR": "/Users/tu-usuario/Desktop/sim-recordings" }
+      "args": ["/absolute/path/to/ios-simulator-mcp/dist/index.js"]
     }
   }
 }
 ```
 
-### Configuración
+### Configuration
 
-| Variable de entorno | Por defecto | Descripción |
+| Environment variable | Default | Description |
 | --- | --- | --- |
-| `IOS_SIMULATOR_MCP_XCRUN_PATH` | `xcrun` | Ejecutable de `xcrun`. |
-| `IOS_SIMULATOR_MCP_IDB_PATH` | `idb` | Ejecutable de `idb`. Útil si el cliente MCP no hereda tu `PATH` (p. ej. `~/.local/bin/idb`). |
-| `IOS_SIMULATOR_MCP_OUTPUT_DIR` | `$TMPDIR/ios-simulator-mcp` | Carpeta por defecto para las grabaciones. |
-| `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | Tiempo durante el que se reutiliza la lista de simuladores. `0` desactiva la caché. |
+| `IOS_SIMULATOR_MCP_XCRUN_PATH` | `xcrun` | The `xcrun` executable. |
+| `IOS_SIMULATOR_MCP_IDB_PATH` | `idb` | The `idb` executable. Useful when the MCP client does not inherit your `PATH`. |
+| `IOS_SIMULATOR_MCP_OUTPUT_DIR` | `$TMPDIR/ios-simulator-mcp` | Default folder for recordings. |
+| `IOS_SIMULATOR_MCP_DEVICE_CACHE_MS` | `10000` | How long the list of simulators is reused. `0` disables the cache. |
 
-## Herramientas
+## Tools
 
-Casi todas aceptan un parámetro opcional `device` (UDID o nombre exacto). Si se omite, se usa el
-único simulador arrancado; si hay varios o ninguno, el error indica cómo desambiguar.
+Almost all accept an optional `device` (UDID or exact name). When omitted, the only booted
+simulator is used; with several or none, the error says how to disambiguate.
 
-| Grupo | Herramienta | Qué hace |
+| Group | Tool | What it does |
 | --- | --- | --- |
-| Dispositivos | `list_devices` | Lista simuladores (nombre, UDID, runtime, estado). |
-| | `boot_device` | Arranca un simulador y espera a que esté listo. |
-| | `shutdown_device` | Apaga uno o todos. |
-| | `erase_device` | Restaura de fábrica (debe estar apagado). |
-| | `open_simulator_app` | Trae la ventana de Simulator al frente. |
-| Apps | `install_app` / `uninstall_app` | Instala un `.app` / desinstala por bundle id. |
-| | `launch_app` / `terminate_app` | Lanza (con argumentos) / termina una app. |
-| | `list_apps` | Apps instaladas, filtrables por `User`/`System`. |
-| | `open_url` | Abre una URL o deep link. |
-| | `get_app_container` | Ruta en el Mac del contenedor de la app. |
-| UI (idb) | `ui_describe_screen` | Elementos en pantalla, una línea por elemento con su punto de toque. |
-| | `ui_describe_point` | Elemento en una coordenada. |
-| | `ui_tap_element` | Busca un elemento por texto, identificador o tipo y lo toca. |
-| | `ui_wait_for_element` | Espera a que un elemento esté en pantalla. |
-| | `ui_sequence` | Ejecuta varios pasos de interfaz en una sola llamada. |
-| | `ui_tap` / `ui_swipe` | Toque (o pulsación larga) / deslizamiento por coordenadas. |
-| | `ui_type_text` | Escribe en el campo con foco (solo texto sin acentos). |
-| | `ui_press_button` / `ui_press_key` | Botón físico (HOME, LOCK…) / tecla por código HID. |
-| Multimedia | `screenshot` | Captura de pantalla, reducida a puntos por defecto. |
-| | `start_recording` / `stop_recording` | Graba la pantalla a `.mp4`. |
-| | `add_media` | Añade fotos/vídeos a la fototeca. |
-| Entorno | `set_appearance` | Modo claro/oscuro. |
-| | `set_location` | Simula o limpia la ubicación GPS. |
-| | `set_status_bar` | Fuerza hora, red y batería de la barra de estado. |
-| | `set_permission` | Concede/revoca/resetea permisos de privacidad. |
-| | `send_push_notification` | Envía una push simulada (payload APNs). |
-| | `set_clipboard` / `get_clipboard` | Escribe y lee el portapapeles del simulador. |
-| Logs | `get_logs` | Logs recientes, filtrables por proceso o texto. |
+| Devices | `list_devices` | Lists simulators (name, UDID, runtime, state). |
+| | `boot_device` | Boots a simulator and waits until it is ready. |
+| | `shutdown_device` | Shuts down one or all. |
+| | `erase_device` | Factory reset (must be shut down). |
+| | `open_simulator_app` | Brings the Simulator window to the front. |
+| Apps | `install_app` / `uninstall_app` | Installs a `.app` / uninstalls by bundle id. |
+| | `launch_app` / `terminate_app` | Launches (with arguments) / terminates an app. |
+| | `list_apps` | Installed apps, filterable by `User`/`System`. |
+| | `open_url` | Opens a URL or deep link. |
+| | `get_app_container` | Path on the Mac of an app container. |
+| UI (idb) | `ui_describe_screen` | Elements on screen, one line each with its tap point. |
+| | `ui_describe_point` | The element at a coordinate. |
+| | `ui_tap_element` | Finds an element by text, identifier or type and taps it. |
+| | `ui_wait_for_element` | Waits until an element is on screen. |
+| | `ui_paste_text` | Enters any text (accents, emoji, any script) into a field. |
+| | `ui_scroll_to_element` | Scrolls until an element is visible. |
+| | `ui_sequence` | Runs several UI steps in a single call. |
+| | `ui_tap` / `ui_swipe` | Tap (or long press) / swipe by coordinates. |
+| | `ui_type_text` | Types into the focused field (unaccented Latin text only). |
+| | `ui_press_button` / `ui_press_key` | Hardware button (HOME, LOCK…) / key by HID code. |
+| Media | `screenshot` | Screenshot, reduced to points by default. |
+| | `start_recording` / `stop_recording` | Records the screen to `.mp4`. |
+| | `add_media` | Adds photos/videos to the library. |
+| Environment | `set_appearance` | Light/dark mode. |
+| | `set_location` | Simulates or clears the GPS location. |
+| | `set_status_bar` | Forces the time, network and battery of the status bar. |
+| | `set_permission` | Grants/revokes/resets privacy permissions. |
+| | `send_push_notification` | Sends a simulated push (APNs payload). |
+| | `set_clipboard` / `get_clipboard` | Writes and reads the simulator clipboard. |
+| Logs | `get_logs` | Recent logs, filterable by process or text. |
 
-**Coordenadas:** las herramientas `ui_*` trabajan en *puntos*. Las capturas se devuelven en puntos
-por defecto, así que sus posiciones sirven directamente para `ui_tap`.
+**Coordinates:** the `ui_*` tools work in *points*. Screenshots are returned in points by default,
+so positions in them can be passed straight to `ui_tap`.
 
-### Pensado para ser rápido
+### Designed to be fast
 
-Lo que más tarda al manejar el simulador desde un agente es cada ida y vuelta con el modelo. El
-servidor las reduce:
+What takes longest when an agent drives the simulator is each round trip with the model. The
+server cuts them down:
 
-- `ui_tap_element` localiza y toca en una llamada, sin pedir coordenadas antes.
-- Cualquier acción acepta `describeAfter: true` y devuelve la pantalla resultante.
-- `ui_sequence` ejecuta un flujo completo (rellenar un formulario, por ejemplo) de una vez.
-- Las respuestas son compactas: una línea por elemento o por app, y capturas en puntos.
-- La lista de simuladores se reutiliza unos segundos entre llamadas.
+- `ui_tap_element` finds and taps in one call, with no coordinates requested first.
+- Any action accepts `describeAfter: true` and returns the resulting screen.
+- `ui_sequence` runs a whole flow (filling a form, for example) at once.
+- `ui_scroll_to_element` replaces swipe-and-look loops.
+- Responses are compact: one line per element or app, and screenshots in points.
+- The list of simulators is reused for a few seconds between calls.
 
-Más detalles en [Trabajar rápido](https://s-pl.github.io/ios-simulator-mcp/guia/rendimiento).
+More in [Working fast](https://s-pl.github.io/ios-simulator-mcp/en/guide/performance).
 
-### Limitaciones conocidas
+### Known limitations
 
-- `ui_type_text` no escribe tildes, ñ ni emojis (limitación de `idb`). Alternativa: `set_clipboard`
-  y pegar.
-- Los deslizamientos desde un borde no abren el Centro de notificaciones ni el de control.
-- Tras lanzar una app la pantalla puede salir negra unos segundos; espera con
+- `ui_type_text` cannot type accents, ñ or emoji (an `idb` limitation). Use `ui_paste_text`.
+- Swipes from a screen edge do not open Notification Center or Control Center.
+- Pinch and other multi-touch gestures are not available.
+- After launching an app the screen can be black for a few seconds; wait with
   `ui_wait_for_element`.
 
-Explicadas en [Limitaciones conocidas](https://s-pl.github.io/ios-simulator-mcp/guia/limitaciones).
+Explained in [Known limitations](https://s-pl.github.io/ios-simulator-mcp/en/guide/limitations).
 
-## Arquitectura
+## Architecture
 
-Arquitectura hexagonal en cuatro capas. Las dependencias apuntan siempre hacia el dominio.
+A hexagonal architecture in four layers. Dependencies always point towards the domain.
 
 ```
 src/
-├── domain/            Modelo y contratos. Sin dependencias externas.
-│   ├── Device, Runtime, geometry, ui, media, environment, InstalledApp
-│   ├── errors.ts      Jerarquía SimulatorError, cada error con un `code` estable
-│   └── ports/         Interfaces que la infraestructura implementa (…Gateway)
-├── application/       Casos de uso: un servicio por área + DeviceResolver
-├── infrastructure/    Adaptadores hacia el mundo real
-│   ├── process/       CommandRunner (interfaz) y NodeCommandRunner (child_process)
-│   ├── host/          SimulatorHost: único punto de salida a comandos de macOS
-│   ├── simctl/        Gateways implementados con `xcrun simctl`
-│   └── idb/           Gateway de automatización de UI con `idb`
-├── mcp/               Presentación: definiciones de herramientas y servidor MCP
-│   ├── ToolDefinition.ts, responses.ts, schemas.ts
-│   ├── SimulatorMcpServer.ts
-│   └── tools/         Un ToolProvider por grupo de herramientas
-├── config.ts          Configuración desde variables de entorno
-├── container.ts       Composition root: único lugar que conecta las capas
-└── index.ts           Punto de entrada (transporte stdio)
+├── domain/            Model and contracts. No external dependencies.
+│   ├── Device, Runtime, geometry, ui, ElementQuery, media, environment
+│   ├── errors.ts      SimulatorError hierarchy, each error with a stable `code`
+│   └── ports/         Interfaces the infrastructure implements (…Gateway)
+├── application/       Use cases: one service per area, DeviceCatalog, DeviceResolver
+├── infrastructure/    Adapters to the real world
+│   ├── process/       CommandRunner (interface) and NodeCommandRunner (child_process)
+│   ├── host/          SimulatorHost: the single way out to macOS commands
+│   ├── simctl/        Gateways implemented with `xcrun simctl`
+│   └── idb/           UI automation gateway on top of `idb`
+├── mcp/               Presentation: tool definitions and the MCP server
+├── config.ts          Configuration from environment variables
+├── container.ts       Composition root: the only place that wires the layers
+└── index.ts           Entry point (stdio transport)
 ```
 
-Flujo de una llamada: `SimulatorMcpServer` valida la entrada con el esquema zod de la herramienta →
-el `ToolProvider` la traduce a una llamada al servicio de aplicación → el servicio resuelve el
-dispositivo con `DeviceResolver` y aplica las reglas de negocio → el gateway ejecuta el comando a
-través de `SimulatorHost`. Cualquier `SimulatorError` vuelve al cliente como `[CODE] mensaje`.
+Design decisions worth knowing:
 
-Decisiones de diseño:
+- **No shell.** Commands run as an executable plus an argument vector, so nothing the model sends
+  can inject commands.
+- **One port per capability.** `idb` is just one adapter and can be replaced without touching the
+  application or MCP layers.
+- **Declarative tools.** Each tool is a `ToolDefinition` (contract + `execute`) independent of the
+  MCP SDK.
+- **UI steps as data.** One code path runs a single action or a whole sequence.
 
-- **Sin shell.** Los comandos se ejecutan como ejecutable + vector de argumentos, así que ningún
-  valor que envíe el modelo puede inyectar comandos.
-- **Puertos por capacidad** (`DeviceGateway`, `AppGateway`, `UiAutomationGateway`…): `idb` es un
-  adaptador más y puede sustituirse sin tocar aplicación ni MCP.
-- **Herramientas declarativas.** Cada herramienta es un `ToolDefinition` (contrato + `execute`)
-  independiente del SDK de MCP; el servidor solo las registra y centraliza el manejo de errores.
-- **Estado acotado.** El único estado son las grabaciones en curso, encapsulado en `MediaService`
-  y liberado en `dispose()` al cerrar el servidor.
+Details in [Architecture](https://s-pl.github.io/ios-simulator-mcp/en/project/architecture).
 
-### Añadir una herramienta
-
-1. Si necesita una capacidad nueva, añádela al puerto en `domain/ports/` e impleméntala en el gateway.
-2. Expón el caso de uso en el servicio de `application/`.
-3. Declárala con `defineTool({...})` en el `ToolProvider` correspondiente de `mcp/tools/`.
-
-## Desarrollo
+## Development
 
 ```bash
-npm run typecheck          # comprueba tipos (src + test)
-npm test                   # compila y ejecuta los tests unitarios y e2e (no necesitan Mac)
-npm run test:integration   # tests contra un simulador real (solo macOS)
-npm run build              # compila a dist/
-npm run docs:dev           # sirve la documentación en local
-npm run docs:tools         # regenera la referencia de herramientas
+npm run lint               # ESLint with type-aware rules
+npm run typecheck          # type-checks src + test
+npm test                   # builds and runs the unit and e2e tests (no Mac needed)
+npm run test:integration   # tests against a real simulator (macOS only)
+npm run docs:dev           # serves the documentation locally
+npm run docs:tools         # regenerates the tool reference
 ```
 
-Los tests no necesitan un Mac: `FakeCommandRunner` sustituye la ejecución de comandos y
-`test/mcp/server.e2e.test.ts` conecta un cliente MCP real al servidor completo en memoria,
-verificando los comandos exactos que se emitirían.
-Los tests de integración (`test/integration/`) arrancan un simulador de verdad y se ejecutan en CI
-sobre un runner de macOS.
+The tests do not need a Mac: `FakeCommandRunner` replaces command execution and the end-to-end
+tests connect a real MCP client to the whole server in memory, checking the exact commands that
+would be issued. The integration tests boot a real simulator, install a small SwiftUI fixture app
+and run in CI on a macOS runner.
 
-La documentación vive en `docs/` y está hecha con [VitePress](https://vitepress.dev); se publica
-en GitHub Pages con cada cambio en `main`. La referencia de herramientas
-(`docs/referencia/herramientas.md`) se genera a partir del propio servidor.
+The documentation lives in `docs/` and is built with [VitePress](https://vitepress.dev), in
+Spanish and English.
 
-## Licencia
+## License
 
 [MIT](LICENSE) © Samuel Ponce Luna

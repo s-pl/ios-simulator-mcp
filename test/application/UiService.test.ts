@@ -302,8 +302,8 @@ describe('UiService', () => {
       const { service, ui, clock } = setUp();
       ui.screens = [page(1), page(4), page(7)];
       const { value } = await service.perform(scrollToRow(8));
-      // 40% of an 844-point screen, centred: from y=591 to y=253.
-      expect(ui.calls).toEqual(['swipe 195,591 195,253', 'swipe 195,591 195,253']);
+      // 60% of an 844-point screen, centred: from y=675 to y=169.
+      expect(ui.calls).toEqual(['swipe 195,675 195,169', 'swipe 195,675 195,169']);
       expect(clock.sleeps).toEqual([600, 600]);
       expect(value.outcomes[0]?.element?.label).toBe('Row 8');
     });
@@ -312,7 +312,7 @@ describe('UiService', () => {
       const { service, ui } = setUp();
       ui.screens = [page(7), page(4)];
       await service.perform(scrollToRow(4, { direction: 'up' }));
-      expect(ui.calls).toEqual(['swipe 195,253 195,591']);
+      expect(ui.calls).toEqual(['swipe 195,169 195,675']);
     });
 
     it('keeps scrolling when the element exists but lies outside the screen', async () => {

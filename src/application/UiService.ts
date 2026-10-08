@@ -71,7 +71,7 @@ const LONG_PRESS_SECONDS = 1;
 const PASTE_MENU_TIMEOUT_MS = 2400;
 const DEFAULT_MAX_SWIPES = 10;
 /** Share of the screen height a scrolling swipe travels, centred vertically. */
-const SCROLL_TRAVEL = 0.4;
+const SCROLL_TRAVEL = 0.6;
 const SCROLL_SWIPE_SECONDS = 0.3;
 
 const KEY_RETURN = 40;

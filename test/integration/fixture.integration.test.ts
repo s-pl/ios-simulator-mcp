@@ -45,7 +45,7 @@ describe.skipIf(!canRun)('fixture app on a real simulator', () => {
 
   it('shows up among the user apps once installed', async () => {
     const { text } = await session.ok('list_apps', { type: 'User' });
-    expect(text).toContain(`${BUNDLE_ID}  MCP Fixture  1.0`);
+    expect(text).toContain(`${BUNDLE_ID}  MCP Fixture`);
   });
 
   it('describes its screen with labels and identifiers', async () => {

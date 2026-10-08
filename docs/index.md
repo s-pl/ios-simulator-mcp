@@ -22,11 +22,11 @@ features:
   - title: Apps
     details: Instala, lanza y termina apps, abre deep links e inspecciona sus contenedores.
   - title: Interfaz
-    details: Lee el árbol de accesibilidad, toca, desliza y escribe mediante idb.
+    details: Lee el árbol de accesibilidad, toca por texto, escribe, pega, desplázate y ejecuta flujos enteros en una llamada.
   - title: Multimedia
     details: Capturas de pantalla y grabación de vídeo.
   - title: Entorno
-    details: Ubicación, modo oscuro, barra de estado, permisos y notificaciones push.
+    details: Ubicación, modo oscuro, barra de estado, permisos, portapapeles y notificaciones push.
   - title: Logs
     details: Logs del sistema filtrados por proceso o por texto.
 ---

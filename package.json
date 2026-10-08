@@ -1,6 +1,6 @@
 {
-  "name": "ios-simulator-mcp",
-  "version": "1.1.0",
+  "name": "@s-pl/ios-simulator-mcp",
+  "version": "1.2.0",
   "description": "MCP server to control the iOS Simulator (devices, apps, UI, media, environment and logs).",
   "type": "module",
   "main": "dist/index.js",
@@ -9,7 +9,10 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "README.es.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
@@ -28,7 +31,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [
     "mcp",
@@ -64,5 +68,8 @@
   "homepage": "https://s-pl.github.io/ios-simulator-mcp/",
   "bugs": {
     "url": "https://github.com/s-pl/ios-simulator-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

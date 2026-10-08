@@ -106,7 +106,8 @@ export class AppTools implements ToolProvider {
         title: 'Open URL',
         description:
           'Opens a URL in the simulator: a web page in Safari, or a deep link / universal link ' +
-          'handled by an installed app (e.g. myapp://profile/42).',
+          'handled by an installed app (e.g. myapp://profile/42). iOS may ask to confirm opening the ' +
+          'app: if so, tap the "Open" button with ui_tap_element.',
         inputSchema: {
           url: z.string().min(1).describe('URL to open. It must include its scheme, e.g. https:// or myapp://.'),
           device: deviceParam,
