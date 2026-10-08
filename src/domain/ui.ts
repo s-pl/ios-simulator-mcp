@@ -70,4 +70,43 @@ export type UiStep =
   | { readonly kind: 'pressButton'; readonly button: HardwareButton }
   | { readonly kind: 'pressKey'; readonly keyCode: number }
   | { readonly kind: 'wait'; readonly seconds: number }
-  | { readonly kind: 'waitForElement'; readonly query: ElementQuery; readonly timeoutSeconds?: number };
+  | { readonly kind: 'waitForElement'; readonly query: ElementQuery; readonly timeoutSeconds?: number }
+  | {
+      /** Enters any text, including what the keyboard cannot type, through the clipboard. */
+      readonly kind: 'pasteText';
+      readonly text: string;
+      /** The text field to paste into. */
+      readonly query: ElementQuery;
+      readonly timeoutSeconds?: number;
+    }
+  | {
+      /** Scrolls until an element is on screen. */
+      readonly kind: 'scrollTo';
+      readonly query: ElementQuery;
+      /** Where the element is expected: further `down` the content (default) or back `up`. */
+      readonly direction?: ScrollDirection;
+      /** Swipes to attempt before giving up. */
+      readonly maxSwipes?: number;
+    };
+
+export const SCROLL_DIRECTIONS = ['down', 'up'] as const;
+export type ScrollDirection = (typeof SCROLL_DIRECTIONS)[number];
+
+/**
+ * Labels of the "Paste" item of the iOS edit menu in the languages a
+ * simulator is most often run in, lower-cased.
+ */
+export const PASTE_MENU_LABELS: readonly string[] = [
+  'paste',
+  'pegar',
+  'coller',
+  'einfügen',
+  'einsetzen',
+  'incolla',
+  'colar',
+  'plakken',
+  'ペースト',
+  '粘贴',
+  '貼上',
+  '붙여넣기',
+];

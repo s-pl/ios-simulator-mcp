@@ -144,7 +144,9 @@ describe.skipIf(!isMac)('real simulator', () => {
 
     it('opens a URL and rejects text that is not one', async () => {
       await ok('open_url', { url: 'https://example.com' });
-      expect((await call('open_url', { url: 'esto no es una url', device: udid })).text).toMatch(/^\[INVALID_ARGUMENT\]/);
+      expect((await call('open_url', { url: 'esto no es una url', device: udid })).text).toMatch(
+        /^\[INVALID_ARGUMENT\]/,
+      );
     });
 
     it('resolves an app container', async () => {
@@ -181,7 +183,9 @@ describe.skipIf(!isMac)('real simulator', () => {
     });
 
     it('rejects media that does not exist', async () => {
-      expect((await call('add_media', { paths: ['/nope/missing.png'], device: udid })).text).toMatch(/^\[PATH_NOT_FOUND\]/);
+      expect((await call('add_media', { paths: ['/nope/missing.png'], device: udid })).text).toMatch(
+        /^\[PATH_NOT_FOUND\]/,
+      );
     });
   });
 

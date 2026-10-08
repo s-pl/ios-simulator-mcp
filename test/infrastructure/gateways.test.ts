@@ -184,7 +184,13 @@ describe('SimctlAppGateway', () => {
     });
     expect(result).toEqual({ bundleId: 'com.example.app', pid: 9 });
     expect(runner.calls[0]?.args).toEqual([
-      'simctl', 'launch', '--terminate-running-process', U, 'com.example.app', '-flag', 'value with spaces',
+      'simctl',
+      'launch',
+      '--terminate-running-process',
+      U,
+      'com.example.app',
+      '-flag',
+      'value with spaces',
     ]);
   });
 
@@ -389,7 +395,8 @@ describe('SimctlEnvironmentGateway', () => {
 });
 
 describe('SimctlEnvironmentGateway pasteboard retries', () => {
-  const TIMEOUT = 'An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=60):\nOperation timed out';
+  const TIMEOUT =
+    'An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=60):\nOperation timed out';
 
   /** A runner whose pasteboard commands time out a number of times before working. */
   function flakyRunner(failures: number): FakeCommandRunner {

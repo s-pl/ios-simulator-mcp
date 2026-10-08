@@ -1,10 +1,5 @@
 import type { Device } from '../domain/Device.js';
-import type {
-  Appearance,
-  GeoLocation,
-  PermissionChange,
-  StatusBarOverrides,
-} from '../domain/environment.js';
+import type { Appearance, GeoLocation, PermissionChange, StatusBarOverrides } from '../domain/environment.js';
 import { CommandFailedError, InvalidArgumentError } from '../domain/errors.js';
 import type { EnvironmentGateway } from '../domain/ports/EnvironmentGateway.js';
 import type { DeviceResolver } from './DeviceResolver.js';
@@ -64,11 +59,7 @@ export class EnvironmentService {
     return device;
   }
 
-  async sendPushNotification(
-    bundleId: string,
-    payload: Record<string, unknown>,
-    reference?: string,
-  ): Promise<Device> {
+  async sendPushNotification(bundleId: string, payload: Record<string, unknown>, reference?: string): Promise<Device> {
     if (typeof payload['aps'] !== 'object' || payload['aps'] === null) {
       throw new InvalidArgumentError('A push payload must contain an "aps" object.');
     }

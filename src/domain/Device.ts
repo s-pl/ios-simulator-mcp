@@ -8,9 +8,7 @@ export type DeviceState = (typeof DEVICE_STATES)[number] | 'Unknown';
 /** Normalises a raw state string coming from the simulator tooling. */
 export function parseDeviceState(raw: string): DeviceState {
   const normalised = raw.replaceAll(' ', '');
-  return (DEVICE_STATES as readonly string[]).includes(normalised)
-    ? (normalised as DeviceState)
-    : 'Unknown';
+  return (DEVICE_STATES as readonly string[]).includes(normalised) ? (normalised as DeviceState) : 'Unknown';
 }
 
 export interface DeviceProps {

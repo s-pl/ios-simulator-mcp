@@ -1,11 +1,7 @@
 import path from 'node:path';
 
 import type { Device } from '../domain/Device.js';
-import {
-  AmbiguousDeviceError,
-  NoActiveRecordingError,
-  RecordingAlreadyActiveError,
-} from '../domain/errors.js';
+import { AmbiguousDeviceError, NoActiveRecordingError, RecordingAlreadyActiveError } from '../domain/errors.js';
 import type { ImageFormat, RecordingSession, Resolution, Screenshot, VideoCodec } from '../domain/media.js';
 import type { DeviceGateway } from '../domain/ports/DeviceGateway.js';
 import type { MediaGateway } from '../domain/ports/MediaGateway.js';

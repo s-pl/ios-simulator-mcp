@@ -26,7 +26,9 @@ export class MediaTools implements ToolProvider {
           resolution: z
             .enum(RESOLUTIONS)
             .optional()
-            .describe('"points" (default): small image whose coordinates match the UI tools. "full": native device pixels.'),
+            .describe(
+              '"points" (default): small image whose coordinates match the UI tools. "full": native device pixels.',
+            ),
           outputPath: z.string().min(1).optional().describe('Also save the image to this path on the Mac.'),
           device: deviceParam,
         },

@@ -249,7 +249,7 @@ describe('typing', () => {
     const result = await harness.call('ui_type_text', { text });
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/^\[UNSUPPORTED_TEXT\] Cannot type/);
-    expect(result.text).toContain('set_clipboard');
+    expect(result.text).toContain('ui_paste_text');
     expect(result.text).not.toContain('Traceback');
     expect(harness.runner.matching('idb')).toEqual([]);
   });
@@ -269,7 +269,92 @@ describe('typing', () => {
   it('warns about the limitation in the tool description', async () => {
     harness = await Harness.start();
     const tool = (await harness.tools()).find((entry) => entry.name === 'ui_type_text');
-    expect(tool?.description).toMatch(/only unaccented Latin.*set_clipboard/s);
+    expect(tool?.description).toMatch(/only unaccented Latin.*ui_paste_text/s);
+  });
+});
+
+describe('pasting text', () => {
+  const FORM = [idbNode('Application', null, [0, 0, 390, 844]), idbNode('TextField', 'Nombre', [20, 200, 350, 40])];
+  const FORM_WITH_MENU = [...FORM, idbNode('MenuItem', 'Pegar', [60, 150, 70, 36])];
+
+  it('enters text with accents and emoji in a single call', async () => {
+    await withScreens(FORM, FORM_WITH_MENU);
+    const result = await harness.ok('ui_paste_text', { text: 'Añadir canción 🎵', label: 'Nombre' });
+    expect(result.text).toBe(
+      `Done on ${DEVICE}: paste_text (16 characters) into label "nombre" -> TextField "Nombre" @(195,220) 350x40.`,
+    );
+    expect(harness.runner.calls.find((call) => call.commandLine.includes('pbcopy'))?.stdin).toBe('Añadir canción 🎵');
+    expect(harness.runner.matching('idb ui tap')).toEqual([
+      `idb ui tap ${IDB} --duration 1 195 220`,
+      `idb ui tap ${IDB} 95 168`,
+    ]);
+    expect(harness.runner.matching('idb ui text')).toEqual([]);
+  });
+
+  it('does not echo the pasted text', async () => {
+    await withScreens(FORM, FORM_WITH_MENU);
+    const result = await harness.ok('ui_paste_text', { text: 'contraseña secreta', label: 'Nombre' });
+    expect(result.text).not.toContain('secreta');
+  });
+
+  it('says so when the field offers no Paste option', async () => {
+    await withScreens(FORM);
+    const result = await harness.call('ui_paste_text', { text: 'ñ', label: 'Nombre' });
+    expect(result.text).toMatch(/^\[PASTE_UNAVAILABLE\] The text was copied to the clipboard/);
+    expect(result.text).toContain('TextField "Nombre"');
+  });
+
+  it('works as a step of a sequence, mixed with typing', async () => {
+    await withScreens(FORM, FORM_WITH_MENU);
+    const result = await harness.ok('ui_sequence', {
+      steps: [
+        { action: 'paste_text', text: 'José Muñoz', label: 'Nombre' },
+        { action: 'press_key', keyCode: 40 },
+      ],
+    });
+    expect(result.text).toContain('1. paste_text (10 characters) into label "nombre"');
+    expect(result.text).toContain('2. press_key 40');
+  });
+});
+
+describe('scrolling to an element', () => {
+  const page = (first: number) => [
+    idbNode('Application', null, [0, 0, 390, 844]),
+    ...[0, 1, 2].map((offset) => idbNode('Cell', `Fila ${first + offset}`, [0, 100 + offset * 200, 390, 44])),
+  ];
+
+  it('scrolls until the element is on screen, in one call', async () => {
+    await withScreens(page(1), page(4), page(7));
+    const result = await harness.ok('ui_scroll_to_element', { label: 'Fila 8' });
+    expect(result.text).toBe(`Done on ${DEVICE}: scroll_to_element label "fila 8" -> Cell "Fila 8" @(195,322) 390x44.`);
+    expect(harness.runner.matching('idb ui swipe')).toEqual([
+      `idb ui swipe ${IDB} --duration 0.3 195 591 195 253`,
+      `idb ui swipe ${IDB} --duration 0.3 195 591 195 253`,
+    ]);
+  });
+
+  it('scrolls back up', async () => {
+    await withScreens(page(7), page(4));
+    await harness.ok('ui_scroll_to_element', { label: 'Fila 4', direction: 'up' });
+    expect(harness.runner.matching('idb ui swipe')).toEqual([`idb ui swipe ${IDB} --duration 0.3 195 253 195 591`]);
+  });
+
+  it('reports what is on screen when the element is not in the list', async () => {
+    await withScreens(page(1), page(4), page(4));
+    const result = await harness.call('ui_scroll_to_element', { label: 'Fila 99' });
+    expect(result.text).toMatch(/^\[ELEMENT_NOT_FOUND\]/);
+    expect(result.text).toContain('Cell "Fila 6"');
+  });
+
+  it('can be followed by a tap in the same sequence', async () => {
+    await withScreens(page(1), page(4));
+    await harness.ok('ui_sequence', {
+      steps: [
+        { action: 'scroll_to_element', label: 'Fila 5', maxSwipes: 3 },
+        { action: 'tap_element', label: 'Fila 5' },
+      ],
+    });
+    expect(harness.runner.matching('idb ui tap')).toEqual([`idb ui tap ${IDB} 195 322`]);
   });
 });
 
@@ -323,7 +408,9 @@ describe('sequences', () => {
         { action: 'wait', seconds: 2 },
       ],
     });
-    expect(result.text).toContain('1. tap (10, 20)\n2. swipe (1, 2) to (3, 4)\n3. press_button HOME\n4. press_key 40\n5. wait 2s');
+    expect(result.text).toContain(
+      '1. tap (10, 20)\n2. swipe (1, 2) to (3, 4)\n3. press_button HOME\n4. press_key 40\n5. wait 2s',
+    );
     expect(harness.clock.sleeps).toEqual([2000]);
     expect(idbCalls()).toEqual([
       'idb ui tap 10 20',

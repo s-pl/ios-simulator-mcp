@@ -3,10 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { UnexpectedOutputError } from '../../src/domain/errors.js';
 import { summariseIdbError, toUiElement } from '../../src/infrastructure/idb/IdbUiAutomationGateway.js';
 import { parseAppList, parseLaunchPid } from '../../src/infrastructure/simctl/SimctlAppGateway.js';
-import {
-  parseDeviceList,
-  parseDeviceTypeBundlePath,
-} from '../../src/infrastructure/simctl/SimctlDeviceGateway.js';
+import { parseDeviceList, parseDeviceTypeBundlePath } from '../../src/infrastructure/simctl/SimctlDeviceGateway.js';
 import { statusBarArguments } from '../../src/infrastructure/simctl/SimctlEnvironmentGateway.js';
 import { parseLogLines } from '../../src/infrastructure/simctl/SimctlLogGateway.js';
 import { parsePixelWidth } from '../../src/infrastructure/simctl/SimctlMediaGateway.js';
@@ -33,7 +30,9 @@ describe('parseDeviceList', () => {
   });
 
   it('skips entries without a UDID or a name', () => {
-    const json = JSON.stringify({ devices: { 'iOS-17-0': [{ name: 'Nameless' }, { udid: 'X' }, { udid: 'Y', name: 'Ok' }] } });
+    const json = JSON.stringify({
+      devices: { 'iOS-17-0': [{ name: 'Nameless' }, { udid: 'X' }, { udid: 'Y', name: 'Ok' }] },
+    });
     expect(parseDeviceList(json).map((device) => device.udid)).toEqual(['Y']);
   });
 
@@ -76,12 +75,9 @@ describe('parseLaunchPid', () => {
     expect(parseLaunchPid(output)).toBe(pid);
   });
 
-  it.each(['', 'com.example.app launched', 'com.example.app: not-a-number'])(
-    'returns undefined for %j',
-    (output) => {
-      expect(parseLaunchPid(output)).toBeUndefined();
-    },
-  );
+  it.each(['', 'com.example.app launched', 'com.example.app: not-a-number'])('returns undefined for %j', (output) => {
+    expect(parseLaunchPid(output)).toBeUndefined();
+  });
 });
 
 describe('parseAppList', () => {
@@ -100,7 +96,13 @@ describe('parseAppList', () => {
     );
     expect(apps).toEqual([
       { bundleId: 'com.example.app', name: 'Example', version: '1.2', type: 'User', bundlePath: '/path/Example.app' },
-      { bundleId: 'com.apple.thing', name: 'com.apple.thing', version: undefined, type: 'System', bundlePath: undefined },
+      {
+        bundleId: 'com.apple.thing',
+        name: 'com.apple.thing',
+        version: undefined,
+        type: 'System',
+        bundlePath: undefined,
+      },
     ]);
   });
 
@@ -122,7 +124,12 @@ describe('parseAppList', () => {
 describe('statusBarArguments', () => {
   it('emits a flag only for the provided overrides', () => {
     expect(statusBarArguments({ time: '9:41', batteryLevel: 100, wifiBars: 0 })).toEqual([
-      '--time', '9:41', '--wifiBars', '0', '--batteryLevel', '100',
+      '--time',
+      '9:41',
+      '--wifiBars',
+      '0',
+      '--batteryLevel',
+      '100',
     ]);
   });
 
@@ -140,9 +147,24 @@ describe('statusBarArguments', () => {
         batteryLevel: 100,
       }),
     ).toEqual([
-      '--time', '9:41', '--dataNetwork', '5g', '--wifiMode', 'active', '--wifiBars', '3',
-      '--cellularMode', 'active', '--cellularBars', '4', '--operatorName', 'Carrier',
-      '--batteryState', 'charged', '--batteryLevel', '100',
+      '--time',
+      '9:41',
+      '--dataNetwork',
+      '5g',
+      '--wifiMode',
+      'active',
+      '--wifiBars',
+      '3',
+      '--cellularMode',
+      'active',
+      '--cellularBars',
+      '4',
+      '--operatorName',
+      'Carrier',
+      '--batteryState',
+      'charged',
+      '--batteryLevel',
+      '100',
     ]);
   });
 

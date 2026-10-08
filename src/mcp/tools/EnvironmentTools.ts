@@ -39,8 +39,7 @@ export class EnvironmentTools implements ToolProvider {
       defineTool({
         name: 'set_location',
         title: 'Simulate location',
-        description:
-          'Simulates a GPS location, or stops simulating one when "clear" is true.',
+        description: 'Simulates a GPS location, or stops simulating one when "clear" is true.',
         inputSchema: {
           latitude: z.number().min(-90).max(90).optional().describe('Latitude in decimal degrees.'),
           longitude: z.number().min(-180).max(180).optional().describe('Longitude in decimal degrees.'),
@@ -140,9 +139,8 @@ export class EnvironmentTools implements ToolProvider {
         name: 'set_clipboard',
         title: 'Set clipboard text',
         description:
-          'Puts text on the simulator clipboard. This is the way to enter text ui_type_text cannot ' +
-          'type (accents, \u00f1, emoji, non-Latin scripts): set the clipboard, long-press the text field ' +
-          'and tap the "Paste" item of the menu that appears.',
+          'Puts text on the simulator clipboard, e.g. to test how an app reads it. To enter text into ' +
+          'a field, ui_paste_text does the copy and the paste in one call.',
         inputSchema: {
           text: z.string().describe('Text to copy. Any Unicode text is accepted.'),
           device: deviceParam,

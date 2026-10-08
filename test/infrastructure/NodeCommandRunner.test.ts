@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  CommandFailedError,
-  CommandTimeoutError,
-  ExecutableNotFoundError,
-} from '../../src/domain/errors.js';
+import { CommandFailedError, CommandTimeoutError, ExecutableNotFoundError } from '../../src/domain/errors.js';
 import { NodeCommandRunner } from '../../src/infrastructure/process/NodeCommandRunner.js';
 
 const node = process.execPath;
@@ -34,15 +30,13 @@ describe('NodeCommandRunner.run', () => {
   });
 
   it('reports a missing executable', async () => {
-    await expect(runner.run('definitely-not-a-real-command-xyz', [])).rejects.toBeInstanceOf(
-      ExecutableNotFoundError,
-    );
+    await expect(runner.run('definitely-not-a-real-command-xyz', [])).rejects.toBeInstanceOf(ExecutableNotFoundError);
   });
 
   it('kills a command that exceeds its timeout', async () => {
-    await expect(
-      runner.run(node, ['-e', 'setTimeout(() => {}, 60000)'], { timeoutMs: 200 }),
-    ).rejects.toBeInstanceOf(CommandTimeoutError);
+    await expect(runner.run(node, ['-e', 'setTimeout(() => {}, 60000)'], { timeoutMs: 200 })).rejects.toBeInstanceOf(
+      CommandTimeoutError,
+    );
   });
 });
 

@@ -13,7 +13,17 @@ export interface GeoLocation {
 }
 
 export const DATA_NETWORKS = [
-  'hide', 'wifi', '3g', '4g', 'lte', 'lte-a', 'lte+', '5g', '5g+', '5g-uwb', '5g-uc',
+  'hide',
+  'wifi',
+  '3g',
+  '4g',
+  'lte',
+  'lte-a',
+  'lte+',
+  '5g',
+  '5g+',
+  '5g-uwb',
+  '5g-uc',
 ] as const;
 export type DataNetwork = (typeof DATA_NETWORKS)[number];
 

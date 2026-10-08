@@ -76,6 +76,11 @@ describe('presenters', () => {
     [{ kind: 'wait', seconds: 0.5 }, 'wait 0.5s'],
     [{ kind: 'tapElement', query: new ElementQuery({ label: 'OK' }) }, 'tap_element label "ok"'],
     [{ kind: 'waitForElement', query: new ElementQuery({ type: 'Button' }) }, 'wait_for_element type "button"'],
+    [
+      { kind: 'pasteText', text: 'año 🎵', query: new ElementQuery({ label: 'Name' }) },
+      'paste_text (5 characters) into label "name"',
+    ],
+    [{ kind: 'scrollTo', query: new ElementQuery({ label: 'Row 9' }) }, 'scroll_to_element label "row 9"'],
   ] as const)('describes the step %j', (step, expected) => {
     expect(describeStep(step)).toBe(expected);
   });
@@ -172,7 +177,12 @@ describe('loadConfig', () => {
         IOS_SIMULATOR_MCP_OUTPUT_DIR: '/tmp/out',
         IOS_SIMULATOR_MCP_DEVICE_CACHE_MS: '0',
       }),
-    ).toMatchObject({ xcrunPath: '/usr/bin/xcrun', idbPath: '/opt/idb', outputDirectory: '/tmp/out', deviceCacheTtlMs: 0 });
+    ).toMatchObject({
+      xcrunPath: '/usr/bin/xcrun',
+      idbPath: '/opt/idb',
+      outputDirectory: '/tmp/out',
+      deviceCacheTtlMs: 0,
+    });
   });
 
   it.each(['', '   ', 'soon', '-5', '1.5', '10s'])('ignores the invalid cache duration %j', (value) => {

@@ -28,8 +28,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     version: readPackageVersion(),
     xcrunPath: nonEmpty(env['IOS_SIMULATOR_MCP_XCRUN_PATH']) ?? 'xcrun',
     idbPath: nonEmpty(env['IOS_SIMULATOR_MCP_IDB_PATH']) ?? 'idb',
-    outputDirectory:
-      nonEmpty(env['IOS_SIMULATOR_MCP_OUTPUT_DIR']) ?? path.join(os.tmpdir(), 'ios-simulator-mcp'),
+    outputDirectory: nonEmpty(env['IOS_SIMULATOR_MCP_OUTPUT_DIR']) ?? path.join(os.tmpdir(), 'ios-simulator-mcp'),
     deviceCacheTtlMs: nonNegativeInteger(env['IOS_SIMULATOR_MCP_DEVICE_CACHE_MS']) ?? DEFAULT_DEVICE_CACHE_TTL_MS,
   };
 }

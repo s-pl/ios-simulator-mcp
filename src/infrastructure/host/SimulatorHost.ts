@@ -1,10 +1,5 @@
 import { ExecutableNotFoundError, UnsupportedPlatformError } from '../../domain/errors.js';
-import type {
-  BackgroundProcess,
-  CommandResult,
-  CommandRunner,
-  RunOptions,
-} from '../process/CommandRunner.js';
+import type { BackgroundProcess, CommandResult, CommandRunner, RunOptions } from '../process/CommandRunner.js';
 
 export interface SimulatorHostOptions {
   /** Path or name of the `xcrun` executable. */

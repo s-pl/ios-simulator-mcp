@@ -20,7 +20,8 @@ const INSTRUCTIONS = [
   'UI coordinates are in points; screenshots are returned in points by default.',
   'After launching an app the screen can be black for a few seconds while it loads: wait with ' +
     'ui_wait_for_element instead of acting or capturing immediately.',
-  'ui_type_text only types unaccented Latin text; for anything else use set_clipboard and paste.',
+  'ui_type_text only types unaccented Latin text; for accents, \u00f1, emoji or other scripts use ui_paste_text.',
+  'To reach an item that is off screen, use ui_scroll_to_element instead of swiping and re-reading.',
 ].join('\n');
 
 /**
@@ -68,6 +69,7 @@ export class SimulatorMcpServer {
       {
         title: tool.title,
         description: tool.description,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- shape erased by AnyToolDefinition
         inputSchema: tool.inputSchema,
         annotations: { title: tool.title, ...tool.annotations },
       },

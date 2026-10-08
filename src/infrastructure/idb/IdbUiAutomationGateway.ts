@@ -37,11 +37,7 @@ export class IdbUiAutomationGateway implements UiAutomationGateway {
   ) {}
 
   async tap(udid: string, point: Point, durationSeconds?: number): Promise<void> {
-    await this.ui(udid, 'tap', [
-      ...optionalFlag('--duration', durationSeconds),
-      String(point.x),
-      String(point.y),
-    ]);
+    await this.ui(udid, 'tap', [...optionalFlag('--duration', durationSeconds), String(point.x), String(point.y)]);
   }
 
   async swipe(udid: string, from: Point, to: Point, options: SwipeOptions = {}): Promise<void> {
@@ -83,7 +79,7 @@ export class IdbUiAutomationGateway implements UiAutomationGateway {
       return undefined;
     }
     const parsed = parseJson(output, 'idb ui describe-point');
-    return parsed && typeof parsed === 'object' ? toUiElement(parsed as IdbElement) : undefined;
+    return parsed && typeof parsed === 'object' ? toUiElement(parsed) : undefined;
   }
 
   /** Runs `idb ui <action> --udid <udid> <args>` and returns its standard output. */

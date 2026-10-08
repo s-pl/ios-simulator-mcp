@@ -38,13 +38,7 @@ export class SimctlAppGateway implements AppGateway {
 
   async launch(udid: string, bundleId: string, options: LaunchOptions = {}): Promise<LaunchResult> {
     const flags = options.terminateRunning ? ['--terminate-running-process'] : [];
-    const { stdout } = await this.host.simctl([
-      'launch',
-      ...flags,
-      udid,
-      bundleId,
-      ...(options.arguments ?? []),
-    ]);
+    const { stdout } = await this.host.simctl(['launch', ...flags, udid, bundleId, ...(options.arguments ?? [])]);
     return { bundleId, pid: parseLaunchPid(stdout) };
   }
 

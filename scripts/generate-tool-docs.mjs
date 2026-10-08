@@ -13,18 +13,51 @@ import { createContainer } from '../dist/container.js';
 
 /** Sections of the page, in order. Tools not listed here end up under "Otras". */
 const GROUPS = [
-  { title: 'Dispositivos', tools: ['list_devices', 'boot_device', 'shutdown_device', 'erase_device', 'open_simulator_app'] },
-  { title: 'Apps', tools: ['install_app', 'uninstall_app', 'launch_app', 'terminate_app', 'list_apps', 'open_url', 'get_app_container'] },
+  {
+    title: 'Dispositivos',
+    tools: ['list_devices', 'boot_device', 'shutdown_device', 'erase_device', 'open_simulator_app'],
+  },
+  {
+    title: 'Apps',
+    tools: [
+      'install_app',
+      'uninstall_app',
+      'launch_app',
+      'terminate_app',
+      'list_apps',
+      'open_url',
+      'get_app_container',
+    ],
+  },
   {
     title: 'Interfaz',
     note: 'Estas herramientas requieren [idb](../guia/instalacion#instalar-idb). Las coordenadas se expresan en [puntos](../guia/conceptos#puntos-no-pixeles). Consulta [Trabajar rápido](../guia/rendimiento) para elegir la más eficiente.',
     tools: [
-      'ui_describe_screen', 'ui_describe_point', 'ui_tap_element', 'ui_wait_for_element', 'ui_sequence',
-      'ui_tap', 'ui_swipe', 'ui_type_text', 'ui_press_button', 'ui_press_key',
+      'ui_describe_screen',
+      'ui_describe_point',
+      'ui_tap_element',
+      'ui_wait_for_element',
+      'ui_sequence',
+      'ui_tap',
+      'ui_swipe',
+      'ui_type_text',
+      'ui_press_button',
+      'ui_press_key',
     ],
   },
   { title: 'Multimedia', tools: ['screenshot', 'start_recording', 'stop_recording', 'add_media'] },
-  { title: 'Entorno', tools: ['set_appearance', 'set_location', 'set_status_bar', 'set_permission', 'send_push_notification', 'set_clipboard', 'get_clipboard'] },
+  {
+    title: 'Entorno',
+    tools: [
+      'set_appearance',
+      'set_location',
+      'set_status_bar',
+      'set_permission',
+      'send_push_notification',
+      'set_clipboard',
+      'get_clipboard',
+    ],
+  },
   { title: 'Logs', tools: ['get_logs'] },
 ];
 
@@ -78,12 +111,7 @@ async function listTools() {
 }
 
 function renderSection(section) {
-  return [
-    `## ${section.title}`,
-    '',
-    ...(section.note ? [section.note, ''] : []),
-    ...section.tools.flatMap(renderTool),
-  ];
+  return [`## ${section.title}`, '', ...(section.note ? [section.note, ''] : []), ...section.tools.flatMap(renderTool)];
 }
 
 function renderTool(tool) {

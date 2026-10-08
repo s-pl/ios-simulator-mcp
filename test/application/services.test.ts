@@ -117,14 +117,11 @@ describe('AppService', () => {
       'mailto:ana@example.com',
       'tel:+34600000000',
       'file:///tmp/a.html',
-    ])(
-      'accepts %s',
-      async (url) => {
-        const { service, apps } = setUp();
-        await service.openUrl(url);
-        expect(apps.calls).toEqual([`openUrl ${url}`]);
-      },
-    );
+    ])('accepts %s', async (url) => {
+      const { service, apps } = setUp();
+      await service.openUrl(url);
+      expect(apps.calls).toEqual([`openUrl ${url}`]);
+    });
 
     it('trims surrounding spaces', async () => {
       const { service, apps } = setUp();
@@ -320,9 +317,7 @@ describe('EnvironmentService', () => {
 
   it.each(['grant', 'revoke'] as const)('requires a bundle id to %s a permission', async (action) => {
     const { service } = setUp();
-    await expect(service.changePermission({ action, service: 'photos' })).rejects.toBeInstanceOf(
-      InvalidArgumentError,
-    );
+    await expect(service.changePermission({ action, service: 'photos' })).rejects.toBeInstanceOf(InvalidArgumentError);
   });
 
   it('resets a permission for every app when no bundle id is given', async () => {

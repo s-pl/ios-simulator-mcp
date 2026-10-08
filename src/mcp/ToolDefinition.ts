@@ -26,6 +26,7 @@ export interface ToolDefinition<Shape extends z.ZodRawShape = z.ZodRawShape> {
 }
 
 /** A tool definition whose input type has been erased, for heterogeneous collections. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the input type is erased on purpose
 export type AnyToolDefinition = ToolDefinition<any>;
 
 /** Identity helper that infers the input type of `execute` from `inputSchema`. */

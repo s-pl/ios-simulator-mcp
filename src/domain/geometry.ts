@@ -38,19 +38,11 @@ export class Rect {
   }
 
   contains(point: Point): boolean {
-    return (
-      point.x >= this.x &&
-      point.x <= this.x + this.width &&
-      point.y >= this.y &&
-      point.y <= this.y + this.height
-    );
+    return point.x >= this.x && point.x <= this.x + this.width && point.y >= this.y && point.y <= this.y + this.height;
   }
 
   /** Middle of the rectangle: the natural place to tap an element. */
   get center(): Point {
-    return new Point(
-      Math.max(0, this.x + this.width / 2),
-      Math.max(0, this.y + this.height / 2),
-    );
+    return new Point(Math.max(0, this.x + this.width / 2), Math.max(0, this.y + this.height / 2));
   }
 }

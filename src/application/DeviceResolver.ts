@@ -70,7 +70,10 @@ function findOnlyBooted(devices: readonly Device[]): Device {
     throw new NoBootedDeviceError();
   }
   if (booted.length > 1) {
-    throw new AmbiguousDeviceError('Several simulators are booted.', booted.map((device) => device.label));
+    throw new AmbiguousDeviceError(
+      'Several simulators are booted.',
+      booted.map((device) => device.label),
+    );
   }
   return first;
 }

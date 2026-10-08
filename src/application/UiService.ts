@@ -1,8 +1,21 @@
 import type { ElementQuery } from '../domain/ElementQuery.js';
-import { CommandFailedError, ElementNotFoundError, UnsupportedTextError } from '../domain/errors.js';
-import type { Point } from '../domain/geometry.js';
+import {
+  CommandFailedError,
+  ElementNotFoundError,
+  PasteUnavailableError,
+  UnsupportedTextError,
+} from '../domain/errors.js';
+import { Point, type Rect } from '../domain/geometry.js';
+import type { EnvironmentGateway } from '../domain/ports/EnvironmentGateway.js';
 import type { UiAutomationGateway } from '../domain/ports/UiAutomationGateway.js';
-import { describeElement, isLabeled, type UiElement, type UiStep } from '../domain/ui.js';
+import {
+  describeElement,
+  isLabeled,
+  PASTE_MENU_LABELS,
+  type ScrollDirection,
+  type UiElement,
+  type UiStep,
+} from '../domain/ui.js';
 import { SystemClock, type Clock } from './Clock.js';
 import type { DeviceResolver } from './DeviceResolver.js';
 import type { OnDevice } from './OnDevice.js';
@@ -52,6 +65,15 @@ const READ_PATIENCE_MS = 3000;
 /** How many elements an "element not found" error lists to help the client recover. */
 const MAX_LISTED_ELEMENTS = 40;
 
+/** How long a text field is held for its edit menu to appear. */
+const LONG_PRESS_SECONDS = 1;
+/** How long the edit menu is given to show up after a long press. */
+const PASTE_MENU_TIMEOUT_MS = 2400;
+const DEFAULT_MAX_SWIPES = 10;
+/** Share of the screen height a scrolling swipe travels, centred vertically. */
+const SCROLL_TRAVEL = 0.4;
+const SCROLL_SWIPE_SECONDS = 0.3;
+
 const KEY_RETURN = 40;
 const KEY_TAB = 43;
 /** Characters the simulated hardware keyboard can produce. */
@@ -69,6 +91,8 @@ const TYPEABLE = /^[\x20-\x7E]$/;
 export class UiService {
   constructor(
     private readonly ui: UiAutomationGateway,
+    /** Used to enter text the simulated keyboard cannot type. */
+    private readonly clipboard: Pick<EnvironmentGateway, 'setClipboard'>,
     private readonly resolver: DeviceResolver,
     private readonly clock: Clock = new SystemClock(),
   ) {}
@@ -166,7 +190,116 @@ export class UiService {
         const element = await this.waitFor(udid, step.query, step.timeoutSeconds ?? DEFAULT_WAIT_TIMEOUT_SECONDS);
         return { step, element };
       }
+      case 'pasteText': {
+        const element = await this.pasteText(
+          udid,
+          step.text,
+          step.query,
+          step.timeoutSeconds ?? DEFAULT_TAP_TIMEOUT_SECONDS,
+        );
+        return { step, element };
+      }
+      case 'scrollTo': {
+        const element = await this.scrollTo(
+          udid,
+          step.query,
+          step.direction ?? 'down',
+          step.maxSwipes ?? DEFAULT_MAX_SWIPES,
+        );
+        return { step, element };
+      }
     }
+  }
+
+  /**
+   * Enters text into a field through the clipboard, the way a user would:
+   * copy, long-press the field, choose "Paste". Unlike typing, this works for
+   * any text: accents, emoji, any script.
+   *
+   * A field that does not have focus yet may ignore the first long press, so
+   * the field is tapped and pressed again once before giving up.
+   * @throws PasteUnavailableError when no "Paste" option appears.
+   */
+  private async pasteText(udid: string, text: string, query: ElementQuery, timeoutSeconds: number): Promise<UiElement> {
+    await this.clipboard.setClipboard(udid, text);
+    const field = await this.waitFor(udid, query, timeoutSeconds);
+    const target = field.frame.center.rounded();
+
+    await this.ui.tap(udid, target, LONG_PRESS_SECONDS);
+    let paste = await this.findPasteItem(udid);
+    if (!paste) {
+      await this.ui.tap(udid, target);
+      await this.clock.sleep(SETTLE_MS);
+      await this.ui.tap(udid, target, LONG_PRESS_SECONDS);
+      paste = await this.findPasteItem(udid);
+    }
+    if (!paste) {
+      const visible = (await this.labeledElements(udid).catch(() => []))
+        .slice(0, MAX_LISTED_ELEMENTS)
+        .map(describeElement);
+      throw new PasteUnavailableError(query.describe(), visible);
+    }
+    await this.ui.tap(udid, paste.frame.center.rounded());
+    return field;
+  }
+
+  /** Waits briefly for the "Paste" item of the edit menu, in any supported language. */
+  private async findPasteItem(udid: string): Promise<UiElement | undefined> {
+    const deadline = this.clock.now() + PASTE_MENU_TIMEOUT_MS;
+    for (;;) {
+      const elements = await this.tryReadScreen(udid);
+      const item =
+        elements instanceof Error
+          ? undefined
+          : elements.find((element) => PASTE_MENU_LABELS.includes(element.label?.trim().toLowerCase() ?? ''));
+      if (item || this.clock.now() >= deadline) {
+        return item;
+      }
+      await this.clock.sleep(POLL_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Swipes the content until the element is within the screen. Stops early
+   * when a swipe changes nothing, which means the end of the content was reached.
+   * @throws ElementNotFoundError when the element does not come into view.
+   */
+  private async scrollTo(
+    udid: string,
+    query: ElementQuery,
+    direction: ScrollDirection,
+    maxSwipes: number,
+  ): Promise<UiElement> {
+    let elements = await this.readScreen(udid);
+    for (let swipes = 0; ; swipes += 1) {
+      const screen = screenBounds(elements);
+      const element = query.select(elements);
+      if (element && (!screen || screen.contains(element.frame.center))) {
+        return element;
+      }
+      if (!screen || swipes >= maxSwipes) {
+        break;
+      }
+
+      const x = screen.x + screen.width / 2;
+      const middle = screen.y + screen.height / 2;
+      const half = (screen.height * SCROLL_TRAVEL) / 2;
+      // Content further down is revealed by dragging the finger up, and vice versa.
+      const [fromY, toY] = direction === 'down' ? [middle + half, middle - half] : [middle - half, middle + half];
+      await this.ui.swipe(udid, new Point(x, fromY).rounded(), new Point(x, toY).rounded(), {
+        durationSeconds: SCROLL_SWIPE_SECONDS,
+      });
+      await this.clock.sleep(SETTLE_MS);
+
+      const after = await this.readScreen(udid);
+      const reachedTheEnd = sameScreen(elements, after);
+      elements = after;
+      if (reachedTheEnd && !query.select(after)) {
+        break;
+      }
+    }
+    const visible = elements.filter(isLabeled).slice(0, MAX_LISTED_ELEMENTS).map(describeElement);
+    throw new ElementNotFoundError(query.describe(), visible);
   }
 
   /**
@@ -255,4 +388,18 @@ export class UiService {
   private async labeledElements(udid: string): Promise<UiElement[]> {
     return (await this.readScreen(udid)).filter(isLabeled);
   }
+}
+
+/** The area of the screen: the frame of the largest element, which is the application itself. */
+function screenBounds(elements: readonly UiElement[]): Rect | undefined {
+  const frames = elements.map((element) => element.frame).filter((frame) => frame.area > 0);
+  return frames.reduce<Rect | undefined>(
+    (largest, frame) => (!largest || frame.area > largest.area ? frame : largest),
+    undefined,
+  );
+}
+
+/** Whether two reads of the screen show the same elements in the same places. */
+function sameScreen(before: readonly UiElement[], after: readonly UiElement[]): boolean {
+  return before.map(describeElement).join('\n') === after.map(describeElement).join('\n');
 }

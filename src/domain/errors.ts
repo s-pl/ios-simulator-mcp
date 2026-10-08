@@ -20,9 +20,7 @@ export class UnsupportedPlatformError extends SimulatorError {
   readonly code = 'UNSUPPORTED_PLATFORM';
 
   constructor(readonly platform: string) {
-    super(
-      `The iOS Simulator is only available on macOS with Xcode installed (current platform: ${platform}).`,
-    );
+    super(`The iOS Simulator is only available on macOS with Xcode installed (current platform: ${platform}).`);
   }
 }
 
@@ -152,11 +150,7 @@ export class NoActiveRecordingError extends SimulatorError {
   readonly code = 'NO_ACTIVE_RECORDING';
 
   constructor(deviceLabel?: string) {
-    super(
-      deviceLabel
-        ? `There is no active recording for simulator ${deviceLabel}.`
-        : 'There is no active recording.',
-    );
+    super(deviceLabel ? `There is no active recording for simulator ${deviceLabel}.` : 'There is no active recording.');
   }
 }
 
@@ -220,8 +214,24 @@ export class UnsupportedTextError extends SimulatorError {
   constructor(readonly characters: readonly string[]) {
     super(
       `Cannot type ${characters.map((character) => JSON.stringify(character)).join(', ')}: the simulated keyboard ` +
-        'only types unaccented Latin letters, digits and common punctuation. To enter this text, copy it with ' +
-        'set_clipboard, long-press the text field and tap the "Paste" item of the menu that appears.',
+        'only types unaccented Latin letters, digits and common punctuation. Use ui_paste_text instead: it ' +
+        'enters any text through the clipboard.',
+    );
+  }
+}
+
+/** The edit menu with a "Paste" item could not be brought up on a text field. */
+export class PasteUnavailableError extends SimulatorError {
+  readonly code = 'PASTE_UNAVAILABLE';
+
+  constructor(
+    readonly field: string,
+    readonly visible: readonly string[],
+  ) {
+    const onScreen = visible.length > 0 ? ` Elements on screen:\n${visible.join('\n')}` : '';
+    super(
+      `The text was copied to the clipboard, but no "Paste" option appeared after long-pressing ${field}. ` +
+        `Make sure it is an editable text field; if its menu uses another word, tap that item with ui_tap_element.${onScreen}`,
     );
   }
 }

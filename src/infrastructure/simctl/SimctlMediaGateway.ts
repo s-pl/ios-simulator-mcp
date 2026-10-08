@@ -3,13 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { SimulatorError } from '../../domain/errors.js';
-import type {
-  CaptureOptions,
-  CapturedImage,
-  ImageFormat,
-  RecordingSession,
-  VideoCodec,
-} from '../../domain/media.js';
+import type { CaptureOptions, CapturedImage, ImageFormat, RecordingSession, VideoCodec } from '../../domain/media.js';
 import type { MediaGateway } from '../../domain/ports/MediaGateway.js';
 import { existingPath } from '../host/paths.js';
 import type { SimulatorHost } from '../host/SimulatorHost.js';
@@ -52,14 +46,7 @@ export class SimctlMediaGateway implements MediaGateway {
     const resolvedPath = path.resolve(outputPath);
     await mkdir(path.dirname(resolvedPath), { recursive: true });
 
-    const recorder = this.host.startSimctl([
-      'io',
-      udid,
-      'recordVideo',
-      `--codec=${codec}`,
-      '--force',
-      resolvedPath,
-    ]);
+    const recorder = this.host.startSimctl(['io', udid, 'recordVideo', `--codec=${codec}`, '--force', resolvedPath]);
     try {
       await recorder.waitForOutput(/Recording started/i, RECORDING_START_TIMEOUT_MS);
     } catch (error) {

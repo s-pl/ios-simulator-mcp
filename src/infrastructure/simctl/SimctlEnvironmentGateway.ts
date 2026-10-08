@@ -1,9 +1,4 @@
-import type {
-  Appearance,
-  GeoLocation,
-  PermissionChange,
-  StatusBarOverrides,
-} from '../../domain/environment.js';
+import type { Appearance, GeoLocation, PermissionChange, StatusBarOverrides } from '../../domain/environment.js';
 import { CommandFailedError } from '../../domain/errors.js';
 import type { EnvironmentGateway } from '../../domain/ports/EnvironmentGateway.js';
 import type { CommandResult } from '../process/CommandRunner.js';

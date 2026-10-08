@@ -188,7 +188,7 @@ describe('errors', () => {
   it('UnsupportedTextError names the characters and the workaround', () => {
     const error = new UnsupportedTextError(['ñ', 'á']);
     expect(error.message).toContain('"ñ", "á"');
-    expect(error.message).toContain('set_clipboard');
+    expect(error.message).toContain('ui_paste_text');
   });
 });
 

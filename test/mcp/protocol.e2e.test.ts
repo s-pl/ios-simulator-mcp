@@ -7,13 +7,41 @@ import { defineTool, Hints } from '../../src/mcp/ToolDefinition.js';
 import { Harness } from '../support/Harness.js';
 
 const EXPECTED_TOOLS = [
-  'list_devices', 'boot_device', 'shutdown_device', 'erase_device', 'open_simulator_app',
-  'install_app', 'uninstall_app', 'launch_app', 'terminate_app', 'list_apps', 'open_url', 'get_app_container',
-  'ui_describe_screen', 'ui_describe_point', 'ui_tap_element', 'ui_wait_for_element', 'ui_tap', 'ui_swipe',
-  'ui_type_text', 'ui_press_button', 'ui_press_key', 'ui_sequence',
-  'screenshot', 'start_recording', 'stop_recording', 'add_media',
-  'set_appearance', 'set_location', 'set_status_bar', 'set_permission', 'send_push_notification',
-  'set_clipboard', 'get_clipboard',
+  'list_devices',
+  'boot_device',
+  'shutdown_device',
+  'erase_device',
+  'open_simulator_app',
+  'install_app',
+  'uninstall_app',
+  'launch_app',
+  'terminate_app',
+  'list_apps',
+  'open_url',
+  'get_app_container',
+  'ui_describe_screen',
+  'ui_describe_point',
+  'ui_tap_element',
+  'ui_paste_text',
+  'ui_scroll_to_element',
+  'ui_wait_for_element',
+  'ui_tap',
+  'ui_swipe',
+  'ui_type_text',
+  'ui_press_button',
+  'ui_press_key',
+  'ui_sequence',
+  'screenshot',
+  'start_recording',
+  'stop_recording',
+  'add_media',
+  'set_appearance',
+  'set_location',
+  'set_status_bar',
+  'set_permission',
+  'send_push_notification',
+  'set_clipboard',
+  'get_clipboard',
   'get_logs',
 ];
 
@@ -83,7 +111,15 @@ describe('MCP protocol surface', () => {
   it('tells the model how to work efficiently', async () => {
     harness = await Harness.start();
     const instructions = harness.instructions ?? '';
-    for (const hint of ['ui_tap_element', 'describeAfter', 'ui_sequence', 'black', 'set_clipboard', 'points']) {
+    for (const hint of [
+      'ui_tap_element',
+      'describeAfter',
+      'ui_sequence',
+      'black',
+      'ui_paste_text',
+      'ui_scroll_to_element',
+      'points',
+    ]) {
       expect(instructions, `instructions mention ${hint}`).toContain(hint);
     }
   });
@@ -113,12 +149,16 @@ describe('MCP protocol surface', () => {
       ['ui_sequence', { steps: [] }],
       ['ui_sequence', { steps: [{ action: 'explode' }] }],
       ['ui_sequence', { steps: [{ action: 'tap', x: 1 }] }],
+      ['ui_paste_text', { label: 'Name' }],
+      ['ui_paste_text', { text: '', label: 'Name' }],
+      ['ui_scroll_to_element', { label: 'Row', direction: 'sideways' }],
+      ['ui_scroll_to_element', { label: 'Row', maxSwipes: 0 }],
       ['ui_tap_element', { label: 'OK', index: -1 }],
       ['screenshot', { resolution: 'huge' }],
       ['send_push_notification', { bundleId: 'com.example.app', payload: { alert: 'no aps' } }],
     ])('rejects %s with %j without running any command', async (name, args) => {
       harness = await Harness.start();
-      const result = await harness.call(name, args as Record<string, unknown>);
+      const result = await harness.call(name, args);
       expect(result.isError).toBe(true);
       expect(harness.runner.calls).toEqual([]);
     });

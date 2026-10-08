@@ -67,7 +67,10 @@ afterEach(async () => {
 describe('server process over stdio', () => {
   it('completes the MCP handshake and identifies itself', async () => {
     const { client } = await connect();
-    expect(client.getServerVersion()).toMatchObject({ name: 'ios-simulator', version: expect.stringMatching(/^\d+\.\d+\.\d+$/) });
+    expect(client.getServerVersion()).toMatchObject({
+      name: 'ios-simulator',
+      version: expect.stringMatching(/^\d+\.\d+\.\d+$/),
+    });
     expect(client.getServerCapabilities()?.tools).toBeDefined();
     expect(client.getInstructions()).toContain('ui_sequence');
   });
@@ -75,7 +78,7 @@ describe('server process over stdio', () => {
   it('serves its tools', async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(34);
+    expect(tools).toHaveLength(36);
     expect(tools.map((tool) => tool.name)).toEqual(
       expect.arrayContaining(['list_devices', 'ui_tap_element', 'ui_sequence', 'screenshot', 'set_clipboard']),
     );

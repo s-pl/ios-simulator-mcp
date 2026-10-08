@@ -57,8 +57,14 @@ export function createContainer(config: ServerConfig, overrides: ContainerOverri
   const mediaService = new MediaService(new SimctlMediaGateway(host), deviceGateway, resolver, {
     outputDirectory: config.outputDirectory,
   });
-  const uiService = new UiService(new IdbUiAutomationGateway(host, config.idbPath), resolver, overrides.clock);
-  const environmentService = new EnvironmentService(new SimctlEnvironmentGateway(host), resolver);
+  const environmentGateway = new SimctlEnvironmentGateway(host);
+  const uiService = new UiService(
+    new IdbUiAutomationGateway(host, config.idbPath),
+    environmentGateway,
+    resolver,
+    overrides.clock,
+  );
+  const environmentService = new EnvironmentService(environmentGateway, resolver);
   const logService = new LogService(new SimctlLogGateway(host), resolver);
 
   // Presentation

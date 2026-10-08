@@ -1,0 +1,9 @@
+dist/
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/referencia/herramientas.md
+docs/en/reference/tools.md
+package-lock.json
+CHANGELOG.md
+*.md

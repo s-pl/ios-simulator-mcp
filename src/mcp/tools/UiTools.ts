@@ -3,17 +3,11 @@ import { z } from 'zod';
 import type { UiService } from '../../application/UiService.js';
 import { ElementQuery } from '../../domain/ElementQuery.js';
 import { Point } from '../../domain/geometry.js';
-import { describeElement, HARDWARE_BUTTONS, type UiStep } from '../../domain/ui.js';
+import { describeElement, HARDWARE_BUTTONS, SCROLL_DIRECTIONS, type UiStep } from '../../domain/ui.js';
 import { formatRun, formatScreen } from '../presenters.js';
 import { failure, text } from '../responses.js';
 import { coordinate, deviceParam } from '../schemas.js';
-import {
-  defineTool,
-  Hints,
-  type AnyToolDefinition,
-  type ToolProvider,
-  type ToolResponse,
-} from '../ToolDefinition.js';
+import { defineTool, Hints, type AnyToolDefinition, type ToolProvider, type ToolResponse } from '../ToolDefinition.js';
 
 const describeAfterParam = z
   .boolean()
@@ -29,16 +23,12 @@ const elementShape = {
     .describe('Visible text of the element (label or value), case-insensitive. Exact matches win over partial ones.'),
   identifier: z.string().min(1).optional().describe('Exact accessibilityIdentifier of the element.'),
   type: z.string().min(1).optional().describe('Accessibility type to restrict the match to, e.g. "Button".'),
-  index: z
-    .number()
-    .int()
-    .min(0)
-    .optional()
-    .describe('Which match to use (0 = first) when several elements qualify.'),
+  index: z.number().int().min(0).optional().describe('Which match to use (0 = first) when several elements qualify.'),
 };
 
 const durationParam = z.number().positive().max(30).optional();
 const timeoutParam = z.number().min(0).max(60).optional();
+const maxSwipesParam = z.number().int().min(1).max(50).optional();
 
 /** One entry of the `steps` array of ui_sequence. */
 const stepSchema = z.discriminatedUnion('action', [
@@ -62,6 +52,13 @@ const stepSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('press_key'), keyCode: z.number().int().min(0).max(255) }),
   z.object({ action: z.literal('wait'), seconds: z.number().positive().max(30) }),
   z.object({ action: z.literal('wait_for_element'), ...elementShape, timeoutSeconds: timeoutParam }),
+  z.object({ action: z.literal('paste_text'), text: z.string().min(1), ...elementShape, timeoutSeconds: timeoutParam }),
+  z.object({
+    action: z.literal('scroll_to_element'),
+    ...elementShape,
+    direction: z.enum(SCROLL_DIRECTIONS).optional(),
+    maxSwipes: maxSwipesParam,
+  }),
 ]);
 
 type StepInput = z.infer<typeof stepSchema>;
@@ -95,6 +92,20 @@ function toStep(input: StepInput): UiStep {
       return { kind: 'wait', seconds: input.seconds };
     case 'wait_for_element':
       return { kind: 'waitForElement', query: new ElementQuery(input), timeoutSeconds: input.timeoutSeconds };
+    case 'paste_text':
+      return {
+        kind: 'pasteText',
+        text: input.text,
+        query: new ElementQuery(input),
+        timeoutSeconds: input.timeoutSeconds,
+      };
+    case 'scroll_to_element':
+      return {
+        kind: 'scrollTo',
+        query: new ElementQuery(input),
+        direction: input.direction,
+        maxSwipes: input.maxSwipes,
+      };
   }
 }
 
@@ -200,6 +211,56 @@ export class UiTools implements ToolProvider {
       }),
 
       defineTool({
+        name: 'ui_paste_text',
+        title: 'Paste text into a field',
+        description:
+          'Enters any text into a text field through the clipboard: accents, \u00f1, emoji and non-Latin ' +
+          'scripts included. Use it whenever ui_type_text cannot type the text. It copies the text, ' +
+          'long-presses the field and taps "Paste" in the menu that appears, all in one call. The text ' +
+          'is inserted at the cursor; it does not replace what the field already contains. Requires idb.',
+        inputSchema: {
+          text: z.string().min(1).describe('Text to enter. Any Unicode text is accepted.'),
+          ...elementShape,
+          timeoutSeconds: timeoutParam.describe('How long to wait for the field to appear (default: 3).'),
+          describeAfter: describeAfterParam,
+          device: deviceParam,
+        },
+        annotations: Hints.mutating,
+        execute: ({ text: input, timeoutSeconds, describeAfter, device, ...criteria }) =>
+          this.perform(
+            { kind: 'pasteText', text: input, query: new ElementQuery(criteria), timeoutSeconds },
+            describeAfter,
+            device,
+          ),
+      }),
+
+      defineTool({
+        name: 'ui_scroll_to_element',
+        title: 'Scroll to element',
+        description:
+          'Scrolls the screen until an element is visible and returns it, in one call. Use it for ' +
+          'items further down a list instead of repeating ui_swipe and ui_describe_screen. Stops when ' +
+          'the element appears, when the end of the content is reached or after maxSwipes. Requires idb.',
+        inputSchema: {
+          ...elementShape,
+          direction: z
+            .enum(SCROLL_DIRECTIONS)
+            .optional()
+            .describe('"down" (default) looks further down the content; "up" goes back towards the top.'),
+          maxSwipes: maxSwipesParam.describe('Swipes to attempt before giving up (default: 10).'),
+          describeAfter: describeAfterParam,
+          device: deviceParam,
+        },
+        annotations: Hints.mutating,
+        execute: ({ direction, maxSwipes, describeAfter, device, ...criteria }) =>
+          this.perform(
+            { kind: 'scrollTo', query: new ElementQuery(criteria), direction, maxSwipes },
+            describeAfter,
+            device,
+          ),
+      }),
+
+      defineTool({
         name: 'ui_tap',
         title: 'Tap',
         description:
@@ -232,11 +293,7 @@ export class UiTools implements ToolProvider {
           toX: coordinate('Ending horizontal position'),
           toY: coordinate('Ending vertical position'),
           durationSeconds: durationParam.describe('Duration of the gesture.'),
-          stepSize: z
-            .number()
-            .positive()
-            .optional()
-            .describe('Distance in points between intermediate touch events.'),
+          stepSize: z.number().positive().optional().describe('Distance in points between intermediate touch events.'),
           describeAfter: describeAfterParam,
           device: deviceParam,
         },
@@ -261,7 +318,7 @@ export class UiTools implements ToolProvider {
           'Types text into the focused field, as if using the keyboard; line breaks press Return. ' +
           'Tap a text field first to give it focus. Limitation: only unaccented Latin letters, digits ' +
           'and common punctuation can be typed. For accents, ñ, emoji or any other script, use ' +
-          'set_clipboard, long-press the field and tap "Paste". Requires idb.',
+          'ui_paste_text instead. Requires idb.',
         inputSchema: {
           text: z.string().min(1).describe('Text to type (printable ASCII, line breaks and tabs).'),
           describeAfter: describeAfterParam,
@@ -319,6 +376,8 @@ export class UiTools implements ToolProvider {
           '- press_key: keyCode\n' +
           '- wait: seconds\n' +
           '- wait_for_element: label?, identifier?, type?, index?, timeoutSeconds?\n' +
+          '- paste_text: text, label?, identifier?, type?, index?, timeoutSeconds?\n' +
+          '- scroll_to_element: label?, identifier?, type?, index?, direction?, maxSwipes?\n' +
           'Example: [{"action":"tap_element","label":"Email"},{"action":"type_text","text":"a@b.co"},' +
           '{"action":"tap_element","label":"Sign in"},{"action":"wait_for_element","label":"Welcome"}]',
         inputSchema: {
@@ -337,7 +396,11 @@ export class UiTools implements ToolProvider {
   }
 
   /** Runs one step and reports it, optionally followed by the resulting screen. */
-  private async perform(step: UiStep, describeAfter: boolean | undefined, device: string | undefined): Promise<ToolResponse> {
+  private async perform(
+    step: UiStep,
+    describeAfter: boolean | undefined,
+    device: string | undefined,
+  ): Promise<ToolResponse> {
     const { device: target, value } = await this.ui.perform(step, { describeAfter }, device);
     return text(formatRun(target, value, 1));
   }

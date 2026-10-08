@@ -30,11 +30,11 @@ export function describeStep(step: UiStep, element?: UiElement): string {
   const target = element ? ` -> ${describeElement(element)}` : '';
   switch (step.kind) {
     case 'tap':
-      return `tap ${step.point}${step.durationSeconds ? ` for ${step.durationSeconds}s` : ''}`;
+      return `tap ${step.point.toString()}${step.durationSeconds ? ` for ${step.durationSeconds}s` : ''}`;
     case 'tapElement':
       return `tap_element ${step.query.describe()}${target}`;
     case 'swipe':
-      return `swipe ${step.from} to ${step.to}`;
+      return `swipe ${step.from.toString()} to ${step.to.toString()}`;
     case 'typeText':
       return `type_text (${step.text.length} characters)`;
     case 'pressButton':
@@ -45,6 +45,10 @@ export function describeStep(step: UiStep, element?: UiElement): string {
       return `wait ${step.seconds}s`;
     case 'waitForElement':
       return `wait_for_element ${step.query.describe()}${target}`;
+    case 'pasteText':
+      return `paste_text (${[...step.text].length} characters) into ${step.query.describe()}${target}`;
+    case 'scrollTo':
+      return `scroll_to_element ${step.query.describe()}${target}`;
   }
 }
 
@@ -56,7 +60,9 @@ export function formatRun(device: Device, run: UiRun, totalSteps: number): strin
   const lines: string[] = [];
   if (totalSteps === 1 && !run.failure) {
     const [only] = run.outcomes;
-    lines.push(only ? `Done on ${device.label}: ${describeStep(only.step, only.element)}.` : `Done on ${device.label}.`);
+    lines.push(
+      only ? `Done on ${device.label}: ${describeStep(only.step, only.element)}.` : `Done on ${device.label}.`,
+    );
   } else {
     lines.push(`Ran ${run.outcomes.length} of ${totalSteps} step(s) on ${device.label}.`);
     run.outcomes.forEach((outcome, index) => {
@@ -75,9 +81,7 @@ export function formatRun(device: Device, run: UiRun, totalSteps: number): strin
 /** One line per app: `bundle.id  Name  version`. Host paths are left out; get_app_container returns them. */
 export function formatApps(device: Device, apps: readonly InstalledApp[]): string {
   const lines = apps.map((app) =>
-    [app.bundleId, app.name, app.version ?? '', app.type === 'System' ? '[system]' : '']
-      .filter(Boolean)
-      .join('  '),
+    [app.bundleId, app.name, app.version ?? '', app.type === 'System' ? '[system]' : ''].filter(Boolean).join('  '),
   );
   return `${apps.length} app(s) on ${device.label}.\n${lines.join('\n')}`;
 }

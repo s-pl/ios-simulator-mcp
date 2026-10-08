@@ -312,8 +312,17 @@ describe('logs', () => {
     const result = await harness.ok('get_logs', { processName: 'MyApp', messageContains: 'err"or', maxLines: 2 });
     expect(result.text).toBe('(1 older line(s) omitted)\ntwo\nthree');
     expect(harness.runner.calls.at(-1)?.args).toEqual([
-      'simctl', 'spawn', UDID.iphone15, 'log', 'show', '--style', 'compact', '--last', '1m',
-      '--predicate', 'process == "MyApp" AND eventMessage CONTAINS[c] "err\\"or"',
+      'simctl',
+      'spawn',
+      UDID.iphone15,
+      'log',
+      'show',
+      '--style',
+      'compact',
+      '--last',
+      '1m',
+      '--predicate',
+      'process == "MyApp" AND eventMessage CONTAINS[c] "err\\"or"',
     ]);
   });
 

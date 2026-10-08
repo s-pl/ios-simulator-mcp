@@ -1,12 +1,6 @@
 import type { Device } from '../domain/Device.js';
 import { AppNotInstalledError, CommandFailedError, InvalidArgumentError } from '../domain/errors.js';
-import type {
-  AppContainerKind,
-  AppType,
-  InstalledApp,
-  LaunchOptions,
-  LaunchResult,
-} from '../domain/InstalledApp.js';
+import type { AppContainerKind, AppType, InstalledApp, LaunchOptions, LaunchResult } from '../domain/InstalledApp.js';
 import type { AppGateway } from '../domain/ports/AppGateway.js';
 import type { DeviceResolver } from './DeviceResolver.js';
 import type { OnDevice } from './OnDevice.js';
@@ -58,9 +52,7 @@ export class AppService {
   async list(type?: AppType, reference?: string): Promise<OnDevice<InstalledApp[]>> {
     const device = await this.resolver.resolveBooted(reference);
     const installed = await this.apps.listInstalled(device.udid);
-    const value = installed
-      .filter((app) => !type || app.type === type)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const value = installed.filter((app) => !type || app.type === type).sort((a, b) => a.name.localeCompare(b.name));
     return { device, value };
   }
 

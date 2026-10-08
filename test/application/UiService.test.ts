@@ -6,13 +6,21 @@ import {
   AmbiguousElementError,
   DeviceNotBootedError,
   ElementNotFoundError,
+  PasteUnavailableError,
   UnsupportedTextError,
 } from '../../src/domain/errors.js';
 import { Point } from '../../src/domain/geometry.js';
 import type { UiStep } from '../../src/domain/ui.js';
 import { element } from '../support/elements.js';
 import { FakeClock } from '../support/FakeClock.js';
-import { commandFailure, device, FakeDeviceGateway, FakeUiGateway, resolverFor } from '../support/fakes.js';
+import {
+  commandFailure,
+  device,
+  FakeDeviceGateway,
+  FakeEnvironmentGateway,
+  FakeUiGateway,
+  resolverFor,
+} from '../support/fakes.js';
 
 const container = element('Application', undefined, [0, 0, 390, 844]);
 const email = element('TextField', 'Email', [20, 280, 350, 40]);
@@ -26,8 +34,9 @@ function setUp(booted = true) {
   const ui = new FakeUiGateway();
   ui.screens = [login];
   const clock = new FakeClock();
-  const service = new UiService(ui, resolverFor(devices).resolver, clock);
-  return { service, ui, clock, devices };
+  const clipboard = new FakeEnvironmentGateway();
+  const service = new UiService(ui, clipboard, resolverFor(devices).resolver, clock);
+  return { service, ui, clock, devices, clipboard };
 }
 
 const tapSignIn: UiStep = { kind: 'tapElement', query: new ElementQuery({ label: 'Sign in' }) };
@@ -156,7 +165,7 @@ describe('UiService', () => {
     it('reports the read failure, not a missing element, when the screen never becomes readable', async () => {
       const { service, ui } = setUp();
       ui.failOn = { call: 'describe', error: commandFailure('No translation object returned') };
-      const failure = service.perform({ ...tapSignIn, timeoutSeconds: 2 } as UiStep);
+      const failure = service.perform({ ...tapSignIn, timeoutSeconds: 2 });
       await expect(failure).rejects.toThrow('No translation object returned');
       await expect(failure).rejects.not.toBeInstanceOf(ElementNotFoundError);
     });
@@ -203,6 +212,145 @@ describe('UiService', () => {
       const failure = service.perform({ kind: 'typeText', text });
       await expect(failure).rejects.toBeInstanceOf(UnsupportedTextError);
       await expect(failure).rejects.toMatchObject({ characters });
+      expect(ui.calls).toEqual([]);
+    });
+  });
+
+  describe('pasting text', () => {
+    const nameField = element('TextField', 'Name', [20, 200, 350, 40]);
+    const pasteItem = element('MenuItem', 'Paste', [60, 150, 70, 36]);
+    const form = [container, nameField];
+    const formWithMenu = [container, nameField, pasteItem];
+    const paste: UiStep = { kind: 'pasteText', text: 'Añadir canción 🎵', query: new ElementQuery({ label: 'Name' }) };
+
+    it('copies the text, long-presses the field and taps Paste', async () => {
+      const { service, ui, clipboard } = setUp();
+      ui.screens = [form, formWithMenu];
+      const { value } = await service.perform(paste);
+      expect(clipboard.clipboard).toBe('Añadir canción 🎵');
+      expect(ui.calls).toEqual(['tap 195,220 1s', 'tap 95,168']);
+      expect(value.outcomes[0]?.element).toBe(nameField);
+    });
+
+    it('accepts text the keyboard could never type', async () => {
+      const { service, ui, clipboard } = setUp();
+      ui.screens = [form, formWithMenu];
+      await service.perform({ ...paste, text: '日本語 ñ á 👍' });
+      expect(clipboard.clipboard).toBe('日本語 ñ á 👍');
+      expect(ui.calls).not.toContain(expect.stringMatching(/^type /));
+    });
+
+    it.each(['Pegar', 'COLLER', ' Einfügen ', 'Incolla'])('recognises the menu item "%s"', async (label) => {
+      const { service, ui } = setUp();
+      ui.screens = [form, [container, nameField, element('MenuItem', label, [60, 150, 70, 36])]];
+      await service.perform(paste);
+      expect(ui.calls.at(-1)).toBe('tap 95,168');
+    });
+
+    it('waits for the menu to appear', async () => {
+      const { service, ui, clock } = setUp();
+      ui.screens = [form, form, form, formWithMenu];
+      await service.perform(paste);
+      expect(clock.sleeps).toEqual([400, 400]);
+      expect(ui.calls).toEqual(['tap 195,220 1s', 'tap 95,168']);
+    });
+
+    it('focuses the field and presses again when the first long press shows no menu', async () => {
+      const { service, ui } = setUp();
+      // 1 read to find the field, 7 without a menu (2.4 s of polling), then the menu.
+      ui.screens = [...Array<typeof form>(8).fill(form), formWithMenu];
+      await service.perform(paste);
+      expect(ui.calls).toEqual(['tap 195,220 1s', 'tap 195,220', 'tap 195,220 1s', 'tap 95,168']);
+    });
+
+    it('explains what happened when no Paste option ever appears', async () => {
+      const { service, ui, clipboard } = setUp();
+      ui.screens = [form];
+      const failure = service.perform(paste);
+      await expect(failure).rejects.toBeInstanceOf(PasteUnavailableError);
+      await expect(failure).rejects.toThrow(/copied to the clipboard.*label "name".*TextField "Name"/s);
+      expect(clipboard.clipboard).toBe('Añadir canción 🎵');
+      expect(ui.calls.filter((call) => call.startsWith('tap 95'))).toEqual([]);
+    });
+
+    it('fails without touching the clipboard target when the field does not exist', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [[container]];
+      await expect(service.perform({ ...paste, timeoutSeconds: 0 })).rejects.toBeInstanceOf(ElementNotFoundError);
+      expect(ui.calls).toEqual([]);
+    });
+  });
+
+  describe('scrolling to an element', () => {
+    const row = (index: number, y: number) => element('Cell', `Row ${index}`, [0, y, 390, 44]);
+    const page = (first: number) => [container, ...[0, 1, 2].map((offset) => row(first + offset, 100 + offset * 200))];
+    const scrollToRow = (index: number, extra: Partial<Extract<UiStep, { kind: 'scrollTo' }>> = {}): UiStep => ({
+      kind: 'scrollTo',
+      query: new ElementQuery({ label: `Row ${index}` }),
+      ...extra,
+    });
+
+    it('does not swipe when the element is already on screen', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [page(1)];
+      const { value } = await service.perform(scrollToRow(2));
+      expect(ui.calls).toEqual([]);
+      expect(value.outcomes[0]?.element?.label).toBe('Row 2');
+    });
+
+    it('swipes up to reveal content further down until the element appears', async () => {
+      const { service, ui, clock } = setUp();
+      ui.screens = [page(1), page(4), page(7)];
+      const { value } = await service.perform(scrollToRow(8));
+      // 40% of an 844-point screen, centred: from y=591 to y=253.
+      expect(ui.calls).toEqual(['swipe 195,591 195,253', 'swipe 195,591 195,253']);
+      expect(clock.sleeps).toEqual([600, 600]);
+      expect(value.outcomes[0]?.element?.label).toBe('Row 8');
+    });
+
+    it('swipes the other way to go back up', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [page(7), page(4)];
+      await service.perform(scrollToRow(4, { direction: 'up' }));
+      expect(ui.calls).toEqual(['swipe 195,253 195,591']);
+    });
+
+    it('keeps scrolling when the element exists but lies outside the screen', async () => {
+      const { service, ui } = setUp();
+      const below = element('Cell', 'Row 9', [0, 900, 390, 44]);
+      ui.screens = [[...page(1), below], page(7).concat(row(9, 500))];
+      const { value } = await service.perform(scrollToRow(9));
+      expect(ui.calls).toHaveLength(1);
+      expect(value.outcomes[0]?.element?.frame.y).toBe(500);
+    });
+
+    it('stops as soon as a swipe changes nothing: the end of the content', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [page(1), page(4), page(4)];
+      const failure = service.perform(scrollToRow(99));
+      await expect(failure).rejects.toBeInstanceOf(ElementNotFoundError);
+      await expect(failure).rejects.toThrow(/Cell "Row 4"/);
+      expect(ui.calls).toHaveLength(2);
+    });
+
+    it('gives up after the allowed number of swipes', async () => {
+      const { service, ui } = setUp();
+      ui.screens = Array.from({ length: 30 }, (_, index) => page(index * 3 + 1));
+      await expect(service.perform(scrollToRow(999, { maxSwipes: 4 }))).rejects.toBeInstanceOf(ElementNotFoundError);
+      expect(ui.calls).toHaveLength(4);
+    });
+
+    it('swipes ten times at most by default', async () => {
+      const { service, ui } = setUp();
+      ui.screens = Array.from({ length: 30 }, (_, index) => page(index * 3 + 1));
+      await expect(service.perform(scrollToRow(999))).rejects.toBeInstanceOf(ElementNotFoundError);
+      expect(ui.calls).toHaveLength(10);
+    });
+
+    it('does not swipe blindly on an empty screen', async () => {
+      const { service, ui } = setUp();
+      ui.screens = [[]];
+      await expect(service.perform(scrollToRow(1))).rejects.toBeInstanceOf(ElementNotFoundError);
       expect(ui.calls).toEqual([]);
     });
   });

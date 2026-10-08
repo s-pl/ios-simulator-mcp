@@ -19,9 +19,7 @@ export class Runtime {
 
   /** Builds a runtime from its CoreSimulator identifier. Never throws. */
   static fromIdentifier(identifier: string): Runtime {
-    const suffix = identifier.startsWith(RUNTIME_PREFIX)
-      ? identifier.slice(RUNTIME_PREFIX.length)
-      : identifier;
+    const suffix = identifier.startsWith(RUNTIME_PREFIX) ? identifier.slice(RUNTIME_PREFIX.length) : identifier;
     const match = /^([A-Za-z]+)-(\d+(?:-\d+)*)$/.exec(suffix);
     if (!match) {
       return new Runtime(identifier, 'Unknown', '');

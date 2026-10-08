@@ -89,9 +89,7 @@ function matchText(elements: readonly UiElement[], text: string): UiElement[] {
     [element.label, element.value].flatMap((value) => (value ? [value.trim().toLowerCase()] : []));
 
   const exact = elements.filter((element) => texts(element).includes(text));
-  return exact.length > 0
-    ? exact
-    : elements.filter((element) => texts(element).some((value) => value.includes(text)));
+  return exact.length > 0 ? exact : elements.filter((element) => texts(element).some((value) => value.includes(text)));
 }
 
 /**

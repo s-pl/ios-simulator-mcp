@@ -1,10 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 
-import {
-  CommandFailedError,
-  CommandTimeoutError,
-  ExecutableNotFoundError,
-} from '../../domain/errors.js';
+import { CommandFailedError, CommandTimeoutError, ExecutableNotFoundError } from '../../domain/errors.js';
 import type { BackgroundProcess, CommandResult, CommandRunner, RunOptions } from './CommandRunner.js';
 
 /** Upper bound of the output retained for a background process. */
@@ -133,7 +129,7 @@ class NodeBackgroundProcess implements BackgroundProcess {
             settle(resolve);
           }
         } catch (error) {
-          settle(() => reject(error));
+          settle(() => reject(error instanceof Error ? error : new Error(String(error))));
         }
       };
       const timer = setTimeout(
